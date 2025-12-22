@@ -10,5 +10,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app ./cmd/api
 FROM gcr.io/distroless/base-debian12
 WORKDIR /app
 COPY --from=builder /app/app .
+COPY --from=builder /app/permissions.yml .
 EXPOSE 8080
 CMD ["./app"]
