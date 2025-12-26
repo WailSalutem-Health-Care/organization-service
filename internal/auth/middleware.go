@@ -12,7 +12,7 @@ const principalKey ctxKey = "auth_principal"
 
 // Middleware validates token, injects Principal into request context.
 // verifier should be created with NewVerifier.
-func Middleware(ver *verifier) func(http.Handler) http.Handler {
+func Middleware(ver *Verifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authz := r.Header.Get("Authorization")

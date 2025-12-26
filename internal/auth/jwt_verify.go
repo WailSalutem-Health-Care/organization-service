@@ -22,18 +22,18 @@ var (
 	ErrMissingSub    = errors.New("missing sub claim")
 )
 
-type verifier struct {
+type Verifier struct {
 	cfg  Config
 	jwks *JWKS
 }
 
 // NewVerifier constructs a verifier with config and JWKS.
-func NewVerifier(cfg Config, jwks *JWKS) *verifier {
-	return &verifier{cfg: cfg, jwks: jwks}
+func NewVerifier(cfg Config, jwks *JWKS) *Verifier {
+	return &Verifier{cfg: cfg, jwks: jwks}
 }
 
 // ParseAndVerifyToken verifies a bearer token, validates issuer/exp and returns Principal.
-func (v *verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
+func (v *Verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
 	if tokenString == "" {
 		return nil, ErrNoToken
 	}
