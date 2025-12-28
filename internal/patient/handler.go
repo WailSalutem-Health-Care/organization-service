@@ -35,19 +35,18 @@ type PatientListResponse struct {
 }
 
 func (h *Handler) CreatePatient(w http.ResponseWriter, r *http.Request) {
-	pr, ok := auth.FromContext(r.Context())
+	_, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
 	}
 
-
-	orgID := pr.OrgID
+	// Get organization ID from header
+	orgID := r.Header.Get("X-Organization-ID")
 	if orgID == "" {
-		respondError(w, http.StatusBadRequest, "missing_org", "Organization ID not found in token")
+		respondError(w, http.StatusBadRequest, "missing_org", "X-Organization-ID header is required")
 		return
 	}
-
 
 	schemaName, err := organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
 	if err != nil {
@@ -86,15 +85,16 @@ func (h *Handler) CreatePatient(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListPatients(w http.ResponseWriter, r *http.Request) {
-	pr, ok := auth.FromContext(r.Context())
+	_, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
 	}
 
-	orgID := pr.OrgID
+	// Get organization ID from header
+	orgID := r.Header.Get("X-Organization-ID")
 	if orgID == "" {
-		respondError(w, http.StatusBadRequest, "missing_org", "Organization ID not found in token")
+		respondError(w, http.StatusBadRequest, "missing_org", "X-Organization-ID header is required")
 		return
 	}
 
@@ -123,15 +123,16 @@ func (h *Handler) ListPatients(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetPatient(w http.ResponseWriter, r *http.Request) {
-	pr, ok := auth.FromContext(r.Context())
+	_, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
 	}
 
-	orgID := pr.OrgID
+	// Get organization ID from header
+	orgID := r.Header.Get("X-Organization-ID")
 	if orgID == "" {
-		respondError(w, http.StatusBadRequest, "missing_org", "Organization ID not found in token")
+		respondError(w, http.StatusBadRequest, "missing_org", "X-Organization-ID header is required")
 		return
 	}
 
@@ -167,15 +168,16 @@ func (h *Handler) GetPatient(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdatePatient(w http.ResponseWriter, r *http.Request) {
-	pr, ok := auth.FromContext(r.Context())
+	_, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
 	}
 
-	orgID := pr.OrgID
+	// Get organization ID from header
+	orgID := r.Header.Get("X-Organization-ID")
 	if orgID == "" {
-		respondError(w, http.StatusBadRequest, "missing_org", "Organization ID not found in token")
+		respondError(w, http.StatusBadRequest, "missing_org", "X-Organization-ID header is required")
 		return
 	}
 
@@ -217,15 +219,16 @@ func (h *Handler) UpdatePatient(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeletePatient(w http.ResponseWriter, r *http.Request) {
-	pr, ok := auth.FromContext(r.Context())
+	_, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
 	}
 
-	orgID := pr.OrgID
+	// Get organization ID from header
+	orgID := r.Header.Get("X-Organization-ID")
 	if orgID == "" {
-		respondError(w, http.StatusBadRequest, "missing_org", "Organization ID not found in token")
+		respondError(w, http.StatusBadRequest, "missing_org", "X-Organization-ID header is required")
 		return
 	}
 

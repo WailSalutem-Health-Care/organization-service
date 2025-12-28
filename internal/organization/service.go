@@ -3,7 +3,6 @@ package organization
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 type Service struct {
@@ -12,26 +11,6 @@ type Service struct {
 
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
-}
-
-type CreateOrganizationRequest struct {
-	Name         string                 `json:"name"`
-	ContactEmail string                 `json:"contact_email"`
-	ContactPhone string                 `json:"contact_phone"`
-	Address      string                 `json:"address"`
-	Settings     map[string]interface{} `json:"settings,omitempty"`
-}
-
-type OrganizationResponse struct {
-	ID           string                 `json:"id"`
-	Name         string                 `json:"name"`
-	SchemaName   string                 `json:"schema_name"`
-	ContactEmail string                 `json:"contact_email"`
-	ContactPhone string                 `json:"contact_phone"`
-	Address      string                 `json:"address"`
-	Status       string                 `json:"status"`
-	Settings     map[string]interface{} `json:"settings,omitempty"`
-	CreatedAt    time.Time              `json:"created_at"`
 }
 
 func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganizationRequest) (*OrganizationResponse, error) {

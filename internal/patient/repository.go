@@ -32,6 +32,12 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 
 	var patient PatientResponse
 	var dob sql.NullString
+	var email sql.NullString
+	var phoneNumber sql.NullString
+	var address sql.NullString
+	var emergencyContactName sql.NullString
+	var emergencyContactPhone sql.NullString
+	var medicalNotes sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query,
 		patientID,
@@ -47,13 +53,13 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 	).Scan(
 		&patient.ID,
 		&patient.FullName,
-		&patient.Email,
-		&patient.PhoneNumber,
+		&email,
+		&phoneNumber,
 		&dob,
-		&patient.Address,
-		&patient.EmergencyContactName,
-		&patient.EmergencyContactPhone,
-		&patient.MedicalNotes,
+		&address,
+		&emergencyContactName,
+		&emergencyContactPhone,
+		&medicalNotes,
 		&patient.IsActive,
 		&patient.CreatedAt,
 	)
@@ -64,6 +70,24 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 
 	if dob.Valid {
 		patient.DateOfBirth = &dob.String
+	}
+	if email.Valid {
+		patient.Email = email.String
+	}
+	if phoneNumber.Valid {
+		patient.PhoneNumber = phoneNumber.String
+	}
+	if address.Valid {
+		patient.Address = address.String
+	}
+	if emergencyContactName.Valid {
+		patient.EmergencyContactName = emergencyContactName.String
+	}
+	if emergencyContactPhone.Valid {
+		patient.EmergencyContactPhone = emergencyContactPhone.String
+	}
+	if medicalNotes.Valid {
+		patient.MedicalNotes = medicalNotes.String
 	}
 
 	return &patient, nil
@@ -87,18 +111,24 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 	for rows.Next() {
 		var patient PatientResponse
 		var dob sql.NullString
+		var email sql.NullString
+		var phoneNumber sql.NullString
+		var address sql.NullString
+		var emergencyContactName sql.NullString
+		var emergencyContactPhone sql.NullString
+		var medicalNotes sql.NullString
 		var updatedAt sql.NullTime
 
 		err := rows.Scan(
 			&patient.ID,
 			&patient.FullName,
-			&patient.Email,
-			&patient.PhoneNumber,
+			&email,
+			&phoneNumber,
 			&dob,
-			&patient.Address,
-			&patient.EmergencyContactName,
-			&patient.EmergencyContactPhone,
-			&patient.MedicalNotes,
+			&address,
+			&emergencyContactName,
+			&emergencyContactPhone,
+			&medicalNotes,
 			&patient.IsActive,
 			&patient.CreatedAt,
 			&updatedAt,
@@ -109,6 +139,24 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 
 		if dob.Valid {
 			patient.DateOfBirth = &dob.String
+		}
+		if email.Valid {
+			patient.Email = email.String
+		}
+		if phoneNumber.Valid {
+			patient.PhoneNumber = phoneNumber.String
+		}
+		if address.Valid {
+			patient.Address = address.String
+		}
+		if emergencyContactName.Valid {
+			patient.EmergencyContactName = emergencyContactName.String
+		}
+		if emergencyContactPhone.Valid {
+			patient.EmergencyContactPhone = emergencyContactPhone.String
+		}
+		if medicalNotes.Valid {
+			patient.MedicalNotes = medicalNotes.String
 		}
 		if updatedAt.Valid {
 			patient.UpdatedAt = &updatedAt.Time
@@ -133,18 +181,24 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 
 	var patient PatientResponse
 	var dob sql.NullString
+	var email sql.NullString
+	var phoneNumber sql.NullString
+	var address sql.NullString
+	var emergencyContactName sql.NullString
+	var emergencyContactPhone sql.NullString
+	var medicalNotes sql.NullString
 	var updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&patient.ID,
 		&patient.FullName,
-		&patient.Email,
-		&patient.PhoneNumber,
+		&email,
+		&phoneNumber,
 		&dob,
-		&patient.Address,
-		&patient.EmergencyContactName,
-		&patient.EmergencyContactPhone,
-		&patient.MedicalNotes,
+		&address,
+		&emergencyContactName,
+		&emergencyContactPhone,
+		&medicalNotes,
 		&patient.IsActive,
 		&patient.CreatedAt,
 		&updatedAt,
@@ -159,6 +213,24 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 
 	if dob.Valid {
 		patient.DateOfBirth = &dob.String
+	}
+	if email.Valid {
+		patient.Email = email.String
+	}
+	if phoneNumber.Valid {
+		patient.PhoneNumber = phoneNumber.String
+	}
+	if address.Valid {
+		patient.Address = address.String
+	}
+	if emergencyContactName.Valid {
+		patient.EmergencyContactName = emergencyContactName.String
+	}
+	if emergencyContactPhone.Valid {
+		patient.EmergencyContactPhone = emergencyContactPhone.String
+	}
+	if medicalNotes.Valid {
+		patient.MedicalNotes = medicalNotes.String
 	}
 	if updatedAt.Valid {
 		patient.UpdatedAt = &updatedAt.Time

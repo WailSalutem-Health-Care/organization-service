@@ -1,43 +1,29 @@
 roles:
   SUPER_ADMIN:
-    - organization:create #faizan
-    - organization:manage #faizan
-    - organization:view #faizan
-    - organization:update #faizan
-    - organization:delete #faizan
+    - organization:create
+    - organization:manage
+    - organization:view
+    - organization:update
+    - organization:delete
     
-    - patient:create  #faizan
-    - patient:view #faizan
-    - patient:update #faizan
-    - patient:delete #faizan
-
-    - caregiver:create #faizan
-    - caregiver:view #faizan
-    - caregiver:update #faizan
-    - caregiver:delete #faizan 
-
+    - patient:create
+    - patient:view
+    - patient:update
+    - patient:delete
 
   ORG_ADMIN:
-    - organization:view #faizan
+    - organization:view
     
-    - patient:view #faizan
-    - patient:create  #faizan
-    - patient:update  #faizan
-    - patient:delete  #faizan
-
-    - caregiver:create #faizan
-    - caregiver:update #faizan
-    - caregiver:delete #faizan
-    - caregiver:view #faizan
+    - patient:view
+    - patient:create
+    - patient:update
+    - patient:delete
     
     - nfc:assign
     - care-session:report
 
   CAREGIVER:
-    - patient:view  #faizan
-    
-    - caregiver:view #faizan
-    - caregiver:update #faizan
+    - patient:view
 
     - nfc:check-in
     - nfc:check-out
@@ -46,10 +32,8 @@ roles:
     - care-session:read
 
   PATIENT:
-    - patient:view  #faizan
-    - patient:update  #faizan  
-
-    - caregiver:view  #faizan
+    - patient:view
+    - patient:update
 
     - care-session:read
 

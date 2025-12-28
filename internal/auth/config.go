@@ -1,35 +1,37 @@
 package auth
 
-import "os"
+import (
+	"fmt"
+	"log"
+	"os"
+)
 
 // Config holds auth configuration
 type Config struct {
-	Issuer   string
-	JWKSURL  string
-	Audience string
+	Issuer  string
+	JWKSURL string
 }
 
-var (
-	// Defaults are the Keycloak realm values from the brief.
-	DefaultIssuer  = "https://keycloak-wailsalutem-suite.apps.inholland-minor.openshift.eu/realms/wailsalutem"
-	DefaultJWKSURL = "https://keycloak-wailsalutem-suite.apps.inholland-minor.openshift.eu/realms/wailsalutem/protocol/openid-connect/certs"
-)
-
-// LoadConfig reads config from env with sensible defaults.
-// You can override with AUTH_ISSUER and AUTH_JWKS_URL and AUTH_AUD.
 func LoadConfig() Config {
-	issuer := os.Getenv("AUTH_ISSUER")
-	if issuer == "" {
-		issuer = DefaultIssuer
+	// Read Keycloak base URL and realm from environment
+	keycloakBaseURL := os.Getenv("KEYCLOAK_BASE_URL")
+	if keycloakBaseURL == "" {
+		log.Fatal("KEYCLOAK_BASE_URL environment variable is required")
 	}
-	jwks := os.Getenv("AUTH_JWKS_URL")
-	if jwks == "" {
-		jwks = DefaultJWKSURL
+
+	realm := os.Getenv("KEYCLOAK_REALM")
+	if realm == "" {
+		log.Fatal("KEYCLOAK_REALM environment variable is required")
 	}
-	aud := os.Getenv("AUTH_AUD") // optional
+
+	// Build issuer and JWKS URL from base URL and realm
+	issuer := fmt.Sprintf("%s/realms/%s", keycloakBaseURL, realm)
+	jwks := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakBaseURL, realm)
+
+	log.Printf("Keycloak configured - Issuer: %s", issuer)
+
 	return Config{
-		Issuer:   issuer,
-		JWKSURL:  jwks,
-		Audience: aud,
+		Issuer:  issuer,
+		JWKSURL: jwks,
 	}
 }
