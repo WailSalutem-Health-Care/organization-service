@@ -434,36 +434,18 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 }
 
 func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
-	// Start transaction for atomic operation
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// First, get the schema name before deleting
-	var schemaName string
-	querySchema := `
-		SELECT schema_name 
-		FROM wailsalutem.organizations 
-		WHERE id = $1 AND deleted_at IS NULL
+	// Soft delete: Set deleted_at timestamp and update status
+	query := `
+		UPDATE wailsalutem.organizations
+		SET deleted_at = $1,
+		    status = 'deleted',
+		    updated_at = $1
+		WHERE id = $2 AND deleted_at IS NULL
 	`
-	err = tx.QueryRowContext(ctx, querySchema, id).Scan(&schemaName)
-	if err == sql.ErrNoRows {
-		return fmt.Errorf("organization not found")
-	}
-	if err != nil {
-		return fmt.Errorf("failed to query organization: %w", err)
-	}
 
-	// Delete the organization record (HARD DELETE)
-	queryDelete := `
-		DELETE FROM wailsalutem.organizations
-		WHERE id = $1 AND deleted_at IS NULL
-	`
-	result, err := tx.ExecContext(ctx, queryDelete, id)
+	result, err := r.db.ExecContext(ctx, query, time.Now(), id)
 	if err != nil {
-		return fmt.Errorf("failed to delete organization: %w", err)
+		return fmt.Errorf("failed to soft delete organization: %w", err)
 	}
 
 	rows, err := result.RowsAffected()
@@ -471,24 +453,16 @@ func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("organization not found")
+		return fmt.Errorf("organization not found or already deleted")
 	}
 
-	// Drop the organization's schema (CASCADE will drop all tables in the schema)
-	dropSchemaQuery := fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", pq.QuoteIdentifier(schemaName))
-	if _, err := tx.ExecContext(ctx, dropSchemaQuery); err != nil {
-		return fmt.Errorf("failed to drop schema %s: %w", schemaName, err)
-	}
-
-	// Clear the schema from cache
+	// Clear the schema from cache to prevent access to deleted organization
 	schemaCacheMutex.Lock()
 	delete(schemaCache, id)
 	schemaCacheMutex.Unlock()
 
-	// Commit the transaction
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
+	// NOTE: Schema and all data are retained for 3 years as per retention policy
+	// Run cleanup job periodically to purge organizations deleted more than 3 years ago
 
 	return nil
 }
