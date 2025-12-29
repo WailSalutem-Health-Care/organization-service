@@ -11,6 +11,15 @@ type CreateOrganizationRequest struct {
 	Settings     map[string]interface{} `json:"settings,omitempty"`
 }
 
+// UpdateOrganizationRequest represents the request to update an organization
+type UpdateOrganizationRequest struct {
+	Name         *string                 `json:"name,omitempty"`
+	ContactEmail *string                 `json:"contact_email,omitempty"`
+	ContactPhone *string                 `json:"contact_phone,omitempty"`
+	Address      *string                 `json:"address,omitempty"`
+	Settings     *map[string]interface{} `json:"settings,omitempty"`
+}
+
 // OrganizationResponse represents the organization data returned to clients
 type OrganizationResponse struct {
 	ID           string                 `json:"id"`

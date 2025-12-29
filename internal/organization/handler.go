@@ -121,6 +121,66 @@ func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
+	_, ok := auth.FromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
+		return
+	}
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "validation_error", "Organization ID is required")
+		return
+	}
+
+	var req UpdateOrganizationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload: "+err.Error())
+		return
+	}
+
+	org, err := h.service.UpdateOrganization(r.Context(), id, req)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "update_failed", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(SuccessResponse{
+		Success:      true,
+		Message:      "Organization updated successfully",
+		Organization: org,
+	})
+}
+
+func (h *Handler) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
+	_, ok := auth.FromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
+		return
+	}
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "validation_error", "Organization ID is required")
+		return
+	}
+
+	err := h.service.DeleteOrganization(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "deletion_failed", err.Error())
+		return
+	}
+
+	// Return 204 No Content on successful deletion
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func respondError(w http.ResponseWriter, statusCode int, errorType, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
