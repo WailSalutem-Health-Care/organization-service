@@ -2,11 +2,13 @@ package http
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/patient"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/users"
 	"github.com/gorilla/mux"
 )
 
@@ -21,6 +23,17 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 	patientRepo := patient.NewRepository(db)
 	patientService := patient.NewService(patientRepo)
 	patientHandler := patient.NewHandler(patientService, db)
+
+	// Initialize Keycloak admin client
+	keycloakAdmin, err := auth.NewKeycloakAdminClient()
+	if err != nil {
+		log.Fatalf("failed to initialize Keycloak admin client: %v", err)
+	}
+
+	// Initialize user components
+	userRepo := users.NewRepository(db)
+	userService := users.NewService(userRepo, keycloakAdmin)
+	userHandler := users.NewHandler(userService)
 
 	r := mux.NewRouter()
 
@@ -72,7 +85,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 	).Methods("DELETE")
 
 	// Patient routes (ORG_ADMIN and CAREGIVER can view, ORG_ADMIN can manage)
-	r.Handle("/patients",
+	r.Handle("/organization/patients",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:create", perms)(
 				http.HandlerFunc(patientHandler.CreatePatient),
@@ -80,7 +93,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("POST")
 
-	r.Handle("/patients",
+	r.Handle("/organization/patients",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:view", perms)(
 				http.HandlerFunc(patientHandler.ListPatients),
@@ -88,7 +101,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("GET")
 
-	r.Handle("/patients/{id}",
+	r.Handle("/organization/patients/{id}",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:view", perms)(
 				http.HandlerFunc(patientHandler.GetPatient),
@@ -96,7 +109,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("GET")
 
-	r.Handle("/patients/{id}",
+	r.Handle("/organization/patients/{id}",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:update", perms)(
 				http.HandlerFunc(patientHandler.UpdatePatient),
@@ -104,10 +117,59 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("PUT")
 
-	r.Handle("/patients/{id}",
+	r.Handle("/organization/patients/{id}",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:delete", perms)(
 				http.HandlerFunc(patientHandler.DeletePatient),
+			),
+		),
+	).Methods("DELETE")
+
+	// User management routes (ORG_ADMIN and SUPER_ADMIN)
+	r.Handle("/organization/users",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:create", perms)(
+				http.HandlerFunc(userHandler.CreateUser),
+			),
+		),
+	).Methods("POST")
+
+	r.Handle("/organization/users",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListUsers),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.GetUser),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:update", perms)(
+				http.HandlerFunc(userHandler.UpdateUser),
+			),
+		),
+	).Methods("PATCH")
+
+	r.Handle("/organization/users/{id}/reset-password",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:update", perms)(
+				http.HandlerFunc(userHandler.ResetPassword),
+			),
+		),
+	).Methods("POST")
+
+	r.Handle("/organization/users/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:delete", perms)(
+				http.HandlerFunc(userHandler.DeleteUser),
 			),
 		),
 	).Methods("DELETE")

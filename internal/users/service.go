@@ -1,0 +1,355 @@
+package users
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+)
+
+type Service struct {
+	repo          *Repository
+	keycloakAdmin *auth.KeycloakAdminClient
+}
+
+func NewService(repo *Repository, keycloakAdmin *auth.KeycloakAdminClient) *Service {
+	return &Service{
+		repo:          repo,
+		keycloakAdmin: keycloakAdmin,
+	}
+}
+
+func (s *Service) CreateUser(req CreateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
+	var effectiveOrgID string
+
+	if s.hasRole(principal, "SUPER_ADMIN") {
+		if targetOrgID == "" {
+			log.Printf("SUPER_ADMIN must provide X-Organization-Id header")
+			return nil, fmt.Errorf("SUPER_ADMIN must provide X-Organization-Id header to specify target organization")
+		}
+		effectiveOrgID = targetOrgID
+		log.Printf("SUPER_ADMIN creating user in org: %s", effectiveOrgID)
+	} else {
+		if targetOrgID != "" {
+			log.Printf("ORG_ADMIN attempted to create user in different org")
+			return nil, ErrForbidden
+		}
+		effectiveOrgID = principal.OrgID
+		if effectiveOrgID == "" {
+			log.Printf("No organization ID in token")
+			return nil, ErrInvalidOrgSchema
+		}
+		log.Printf("ORG_ADMIN creating user in own org: %s", effectiveOrgID)
+	}
+
+	if !s.hasRole(principal, "SUPER_ADMIN") {
+		if !IsRoleAllowedForOrgAdmin(req.Role) {
+			log.Printf("ORG_ADMIN attempted to create forbidden role: %s", req.Role)
+			return nil, ErrRoleNotAllowed
+		}
+	}
+
+	orgSchemaName := principal.OrgSchemaName
+
+	if targetOrgID != "" || orgSchemaName == "" {
+		var err error
+		orgSchemaName, err = s.repo.GetSchemaNameByOrgID(effectiveOrgID)
+		if err != nil {
+			log.Printf("Failed to get schema name for orgId %s: %v", effectiveOrgID, err)
+			return nil, ErrInvalidOrgSchema
+		}
+		log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, effectiveOrgID)
+	}
+
+	if err := s.repo.ValidateOrgSchema(orgSchemaName); err != nil {
+		return nil, err
+	}
+
+	keycloakUser := auth.KeycloakUser{
+		Username:  req.Username,
+		Email:     req.Email,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Enabled:   true,
+		Attributes: map[string][]string{
+			"orgId":         {effectiveOrgID},
+			"orgSchemaName": {orgSchemaName},
+		},
+	}
+
+	keycloakUserID, err := s.keycloakAdmin.CreateUser(keycloakUser)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user in Keycloak: %w", err)
+	}
+
+	log.Printf("Created user in Keycloak: %s (ID: %s)", req.Username, keycloakUserID)
+
+	if req.TemporaryPassword != "" {
+		err = s.keycloakAdmin.SetPassword(keycloakUserID, req.TemporaryPassword, false)
+		if err != nil {
+			log.Printf("Failed to set password, rolling back user creation: %s", keycloakUserID)
+			_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
+			return nil, fmt.Errorf("failed to set password: %w", err)
+		}
+	} else if req.SendResetEmail {
+		err = s.keycloakAdmin.SendEmailAction(keycloakUserID, []string{"UPDATE_PASSWORD"})
+		if err != nil {
+			log.Printf("Failed to send reset email, rolling back user creation: %s", keycloakUserID)
+			_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
+			return nil, fmt.Errorf("failed to send reset email: %w", err)
+		}
+	}
+
+	role, err := s.keycloakAdmin.GetRole(req.Role)
+	if err != nil {
+		log.Printf("Failed to get role, rolling back user creation: %s", keycloakUserID)
+		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
+		return nil, fmt.Errorf("failed to get role: %w", err)
+	}
+
+	err = s.keycloakAdmin.AssignRole(keycloakUserID, *role)
+	if err != nil {
+		log.Printf("Failed to assign role, rolling back user creation: %s", keycloakUserID)
+		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
+		return nil, fmt.Errorf("failed to assign role: %w", err)
+	}
+
+	user := &User{
+		KeycloakUserID: keycloakUserID,
+		Email:          req.Email,
+		FirstName:      req.FirstName,
+		LastName:       req.LastName,
+		PhoneNumber:    req.PhoneNumber,
+		Role:           req.Role,
+		OrgID:          effectiveOrgID,
+		OrgSchemaName:  orgSchemaName,
+	}
+
+	err = s.repo.Create(user)
+	if err != nil {
+		log.Printf("Failed to create user in database, rolling back: %s", keycloakUserID)
+		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
+		return nil, fmt.Errorf("failed to create user in database: %w", err)
+	}
+
+	log.Printf("Successfully created user end-to-end: %s (Keycloak ID: %s, DB ID: %s)", req.Username, keycloakUserID, user.ID)
+
+	return user, nil
+}
+
+func (s *Service) GetUser(userID string, principal *auth.Principal) (*User, error) {
+	orgSchemaName := principal.OrgSchemaName
+	if orgSchemaName == "" {
+		if principal.OrgID == "" {
+			log.Printf("Principal has no orgId or orgSchemaName")
+			return nil, ErrInvalidOrgSchema
+		}
+
+		var err error
+		orgSchemaName, err = s.repo.GetSchemaNameByOrgID(principal.OrgID)
+		if err != nil {
+			log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+			return nil, ErrInvalidOrgSchema
+		}
+		log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, principal.OrgID)
+	}
+
+	user, err := s.repo.GetByID(orgSchemaName, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if principal.OrgID != "" && user.OrgID != principal.OrgID {
+		return nil, ErrForbidden
+	}
+
+	return user, nil
+}
+
+func (s *Service) ListUsers(principal *auth.Principal, targetOrgID string) ([]User, error) {
+	var effectiveOrgID string
+
+	if s.hasRole(principal, "SUPER_ADMIN") {
+		if targetOrgID != "" {
+			effectiveOrgID = targetOrgID
+			log.Printf("SUPER_ADMIN listing users from org: %s", effectiveOrgID)
+		} else {
+			effectiveOrgID = principal.OrgID
+			if effectiveOrgID == "" {
+				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-Id header provided")
+				return nil, ErrInvalidOrgSchema
+			}
+			log.Printf("SUPER_ADMIN listing users from own org: %s", effectiveOrgID)
+		}
+	} else {
+		if targetOrgID != "" {
+			log.Printf("ORG_ADMIN attempted to list users from different org")
+			return nil, ErrForbidden
+		}
+		effectiveOrgID = principal.OrgID
+		if effectiveOrgID == "" {
+			log.Printf("No organization ID in token")
+			return nil, ErrInvalidOrgSchema
+		}
+		log.Printf("ORG_ADMIN listing users from own org: %s", effectiveOrgID)
+	}
+
+	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(effectiveOrgID)
+	if err != nil {
+		log.Printf("Failed to get schema name for orgId %s: %v", effectiveOrgID, err)
+		return nil, ErrInvalidOrgSchema
+	}
+	log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, effectiveOrgID)
+
+	users, err := s.repo.List(orgSchemaName)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (s *Service) UpdateUser(userID string, req UpdateUserRequest, principal *auth.Principal) (*User, error) {
+	orgSchemaName := principal.OrgSchemaName
+	if orgSchemaName == "" {
+		if principal.OrgID == "" {
+			log.Printf("Principal has no orgId or orgSchemaName")
+			return nil, ErrInvalidOrgSchema
+		}
+
+		var err error
+		orgSchemaName, err = s.repo.GetSchemaNameByOrgID(principal.OrgID)
+		if err != nil {
+			log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+			return nil, ErrInvalidOrgSchema
+		}
+		log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, principal.OrgID)
+	}
+
+	user, err := s.repo.GetByID(orgSchemaName, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if principal.OrgID != "" && user.OrgID != principal.OrgID {
+		return nil, ErrForbidden
+	}
+
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.FirstName != "" {
+		user.FirstName = req.FirstName
+	}
+	if req.LastName != "" {
+		user.LastName = req.LastName
+	}
+	if req.PhoneNumber != "" {
+		user.PhoneNumber = req.PhoneNumber
+	}
+
+	err = s.repo.Update(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *Service) ResetPassword(userID string, req ResetPasswordRequest, principal *auth.Principal) error {
+	orgSchemaName := principal.OrgSchemaName
+	if orgSchemaName == "" {
+		if principal.OrgID == "" {
+			log.Printf("Principal has no orgId or orgSchemaName")
+			return ErrInvalidOrgSchema
+		}
+
+		var err error
+		orgSchemaName, err = s.repo.GetSchemaNameByOrgID(principal.OrgID)
+		if err != nil {
+			log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+			return ErrInvalidOrgSchema
+		}
+		log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, principal.OrgID)
+	}
+
+	user, err := s.repo.GetByID(orgSchemaName, userID)
+	if err != nil {
+		return err
+	}
+
+	if user.OrgID != principal.OrgID {
+		return ErrForbidden
+	}
+
+	if req.TemporaryPassword != "" {
+		err = s.keycloakAdmin.SetPassword(user.KeycloakUserID, req.TemporaryPassword, true)
+		if err != nil {
+			return fmt.Errorf("failed to reset password: %w", err)
+		}
+	} else if req.SendEmail {
+		err = s.keycloakAdmin.SendEmailAction(user.KeycloakUserID, []string{"UPDATE_PASSWORD"})
+		if err != nil {
+			return fmt.Errorf("failed to send reset email: %w", err)
+		}
+	}
+
+	log.Printf("Reset password for user: %s (Keycloak ID: %s)", user.Email, user.KeycloakUserID)
+
+	return nil
+}
+
+func (s *Service) DeleteUser(userID string, principal *auth.Principal) error {
+	orgSchemaName := principal.OrgSchemaName
+	if orgSchemaName == "" {
+		if principal.OrgID == "" {
+			log.Printf("Principal has no orgId or orgSchemaName")
+			return ErrInvalidOrgSchema
+		}
+
+		var err error
+		orgSchemaName, err = s.repo.GetSchemaNameByOrgID(principal.OrgID)
+		if err != nil {
+			log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+			return ErrInvalidOrgSchema
+		}
+		log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, principal.OrgID)
+	}
+
+	user, err := s.repo.GetByID(orgSchemaName, userID)
+	if err != nil {
+		return err
+	}
+
+	if principal.OrgID != "" && user.OrgID != principal.OrgID {
+		return ErrForbidden
+	}
+
+	err = s.keycloakAdmin.DeleteUser(user.KeycloakUserID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user from Keycloak: %w", err)
+	}
+
+	err = s.repo.Delete(principal.OrgSchemaName, userID)
+	if err != nil {
+		log.Printf("WARNING: User deleted from Keycloak but failed to delete from database: %s", userID)
+		return fmt.Errorf("failed to delete user from database: %w", err)
+	}
+
+	log.Printf("Successfully deleted user: %s (Keycloak ID: %s)", user.Email, user.KeycloakUserID)
+
+	return nil
+}
+
+func (s *Service) hasRole(principal *auth.Principal, role string) bool {
+	for _, r := range principal.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}

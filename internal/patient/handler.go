@@ -64,8 +64,13 @@ func (h *Handler) CreatePatient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.FullName == "" {
-		respondError(w, http.StatusBadRequest, "validation_error", "Full name is required")
+	if req.FirstName == "" {
+		respondError(w, http.StatusBadRequest, "validation_error", "First name is required")
+		return
+	}
+
+	if req.LastName == "" {
+		respondError(w, http.StatusBadRequest, "validation_error", "Last name is required")
 		return
 	}
 
