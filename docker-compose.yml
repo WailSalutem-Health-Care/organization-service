@@ -1,14 +1,8 @@
 services:
-  organisation-service:
+  organization-service:
     build: .
-    container_name: organisation-service
+    container_name: organization-service
     env_file:
       - .env
     ports:
       - "8080:8080"
-    networks:
-      - wailsalutem-net
-
-networks:
-  wailsalutem-net:
-    external: true
