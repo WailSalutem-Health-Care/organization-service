@@ -1,7 +1,7 @@
 services:
-  organisation-service:
+  organization-service:
     build: .
-    container_name: organisation-service
+    container_name: organization-service
     env_file:
       - .env
     ports:

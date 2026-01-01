@@ -1,4 +1,4 @@
-module github.com/WailSalutem-Health-Care/organisation-service
+module github.com/WailSalutem-Health-Care/organization-service
 
 go 1.22
 

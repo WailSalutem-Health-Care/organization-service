@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 	"github.com/gorilla/mux"
 )
 
@@ -28,9 +28,9 @@ type SuccessResponse struct {
 }
 
 type ListResponse struct {
-	Success       bool                    `json:"success"`
-	Organizations []OrganizationResponse  `json:"organizations"`
-	Total         int                     `json:"total"`
+	Success       bool                   `json:"success"`
+	Organizations []OrganizationResponse `json:"organizations"`
+	Total         int                    `json:"total"`
 }
 
 func (h *Handler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
@@ -41,26 +41,22 @@ func (h *Handler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	var req CreateOrganizationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload: "+err.Error())
 		return
 	}
 
-
 	if req.Name == "" {
 		respondError(w, http.StatusBadRequest, "validation_error", "Organization name is required")
 		return
 	}
-
 
 	org, err := h.service.CreateOrganization(r.Context(), req)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "creation_failed", err.Error())
 		return
 	}
-
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
