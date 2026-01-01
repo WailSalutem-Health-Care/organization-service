@@ -160,6 +160,8 @@ func (k *KeycloakAdminClient) CreateUser(user KeycloakUser) (string, error) {
 		return "", fmt.Errorf("failed to marshal user: %w", err)
 	}
 
+	log.Printf("Creating Keycloak user with payload: %s", string(body))
+
 	req, err := http.NewRequest("POST", createURL, bytes.NewBuffer(body))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)

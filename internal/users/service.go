@@ -76,10 +76,12 @@ func (s *Service) CreateUser(req CreateUserRequest, principal *auth.Principal, t
 		LastName:  req.LastName,
 		Enabled:   true,
 		Attributes: map[string][]string{
-			"orgId":         {effectiveOrgID},
-			"orgSchemaName": {orgSchemaName},
+			"organizationID": {effectiveOrgID},
+			"orgSchemaName":  {orgSchemaName},
 		},
 	}
+
+	log.Printf("Creating Keycloak user with attributes: organizationID=%s, orgSchemaName=%s", effectiveOrgID, orgSchemaName)
 
 	keycloakUserID, err := s.keycloakAdmin.CreateUser(keycloakUser)
 	if err != nil {

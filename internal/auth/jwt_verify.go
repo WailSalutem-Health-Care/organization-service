@@ -83,9 +83,9 @@ func (v *Verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
 		}
 	}
 
-	// organisationId may be string or number
+	// organizationID may be string or number
 	var orgID string
-	if v, ok := claims["organisationId"].(string); ok {
+	if v, ok := claims["organizationID"].(string); ok {
 		orgID = v
 	}
 
