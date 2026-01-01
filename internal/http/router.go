@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/auth"
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/organization"
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/patient"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/patient"
 	"github.com/gorilla/mux"
 )
 
@@ -27,7 +27,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 	// Public health endpoint
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok","service":"organisation-service"}`))
+		w.Write([]byte(`{"status":"ok","service":"organization-service"}`))
 	}).Methods("GET")
 
 	// Organization routes (SUPER_ADMIN only)

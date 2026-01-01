@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/auth"
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/db"
-	httpRouter "github.com/WailSalutem-Health-Care/organisation-service/internal/http"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/db"
+	httpRouter "github.com/WailSalutem-Health-Care/organization-service/internal/http"
 )
 
 func main() {
-	log.Println("organisation-service starting on :8080")
-
+	log.Println("organization-service starting on :8080")
 	// Connect to database
 	database, err := db.Connect()
 	if err != nil {

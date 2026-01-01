@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/auth"
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/organization"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
 	"github.com/gorilla/mux"
 )
 
@@ -261,8 +261,6 @@ func (h *Handler) DeletePatient(w http.ResponseWriter, r *http.Request) {
 		"message": "Patient deleted successfully",
 	})
 }
-
-
 
 func respondError(w http.ResponseWriter, statusCode int, errorType, message string) {
 	w.Header().Set("Content-Type", "application/json")
