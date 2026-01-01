@@ -55,6 +55,22 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("GET")
 
+	r.Handle("/organizations/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:update", perms)(
+				http.HandlerFunc(orgHandler.UpdateOrganization),
+			),
+		),
+	).Methods("PUT")
+
+	r.Handle("/organizations/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:delete", perms)(
+				http.HandlerFunc(orgHandler.DeleteOrganization),
+			),
+		),
+	).Methods("DELETE")
+
 	// Patient routes (ORG_ADMIN and CAREGIVER can view, ORG_ADMIN can manage)
 	r.Handle("/patients",
 		auth.Middleware(verifier)(

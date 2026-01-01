@@ -41,3 +41,19 @@ func (s *Service) GetOrganization(ctx context.Context, id string) (*Organization
 	}
 	return org, nil
 }
+
+func (s *Service) UpdateOrganization(ctx context.Context, id string, req UpdateOrganizationRequest) (*OrganizationResponse, error) {
+	org, err := s.repo.UpdateOrganization(ctx, id, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update organization: %w", err)
+	}
+	return org, nil
+}
+
+func (s *Service) DeleteOrganization(ctx context.Context, id string) error {
+	err := s.repo.DeleteOrganization(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete organization: %w", err)
+	}
+	return nil
+}
