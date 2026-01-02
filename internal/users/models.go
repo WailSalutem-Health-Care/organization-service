@@ -1,6 +1,8 @@
 package users
 
-import "time"
+import (
+	"time"
+)
 
 // User represents a user in the system
 type User struct {
@@ -17,7 +19,7 @@ type User struct {
 	UpdatedAt      time.Time `json:"updatedAt,omitempty"`
 }
 
-// CreateUserRequest represents the request to create a new user
+// CreateUserRequest represents the request to create a new user (non-PATIENT roles only)
 type CreateUserRequest struct {
 	Username          string `json:"username"`
 	Email             string `json:"email"`
@@ -76,5 +78,6 @@ func (r *CreateUserRequest) Validate() error {
 	if r.TemporaryPassword == "" && !r.SendResetEmail {
 		return ErrMissingPassword
 	}
+
 	return nil
 }

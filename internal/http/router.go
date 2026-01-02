@@ -19,16 +19,16 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 	orgService := organization.NewService(orgRepo)
 	orgHandler := organization.NewHandler(orgService)
 
-	// Initialize patient components
-	patientRepo := patient.NewRepository(db)
-	patientService := patient.NewService(patientRepo)
-	patientHandler := patient.NewHandler(patientService, db)
-
 	// Initialize Keycloak admin client
 	keycloakAdmin, err := auth.NewKeycloakAdminClient()
 	if err != nil {
 		log.Fatalf("failed to initialize Keycloak admin client: %v", err)
 	}
+
+	// Initialize patient components
+	patientRepo := patient.NewRepository(db)
+	patientService := patient.NewService(patientRepo, keycloakAdmin)
+	patientHandler := patient.NewHandler(patientService, db)
 
 	// Initialize user components
 	userRepo := users.NewRepository(db)
