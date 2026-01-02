@@ -14,8 +14,11 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) CreatePatient(ctx context.Context, schemaName string, req CreatePatientRequest) (*PatientResponse, error) {
-	if req.FullName == "" {
-		return nil, fmt.Errorf("full name is required")
+	if req.FirstName == "" {
+		return nil, fmt.Errorf("first name is required")
+	}
+	if req.LastName == "" {
+		return nil, fmt.Errorf("last name is required")
 	}
 
 	patient, err := s.repo.CreatePatient(ctx, schemaName, req)

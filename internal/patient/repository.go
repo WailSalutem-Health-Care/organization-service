@@ -25,9 +25,9 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s.patients 
-		(id, full_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10)
-		RETURNING id, full_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at
+		(id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11)
+		RETURNING id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at
 	`, pq.QuoteIdentifier(schemaName))
 
 	var patient PatientResponse
@@ -41,7 +41,8 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 
 	err := r.db.QueryRowContext(ctx, query,
 		patientID,
-		req.FullName,
+		req.FirstName,
+		req.LastName,
 		req.Email,
 		req.PhoneNumber,
 		req.DateOfBirth,
@@ -52,7 +53,8 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 		createdAt,
 	).Scan(
 		&patient.ID,
-		&patient.FullName,
+		&patient.FirstName,
+		&patient.LastName,
 		&email,
 		&phoneNumber,
 		&dob,
@@ -95,7 +97,7 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 
 func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]PatientResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, full_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
+		SELECT id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
 		FROM %s.patients
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -121,7 +123,8 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 
 		err := rows.Scan(
 			&patient.ID,
-			&patient.FullName,
+			&patient.FirstName,
+			&patient.LastName,
 			&email,
 			&phoneNumber,
 			&dob,
@@ -174,7 +177,7 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 
 func (r *Repository) GetPatient(ctx context.Context, schemaName string, id string) (*PatientResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, full_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
+		SELECT id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
 		FROM %s.patients
 		WHERE id = $1 AND deleted_at IS NULL
 	`, pq.QuoteIdentifier(schemaName))
@@ -191,7 +194,8 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&patient.ID,
-		&patient.FullName,
+		&patient.FirstName,
+		&patient.LastName,
 		&email,
 		&phoneNumber,
 		&dob,
@@ -245,9 +249,14 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	var args []interface{}
 	argIndex := 1
 
-	if req.FullName != nil {
-		updates = append(updates, fmt.Sprintf("full_name = $%d", argIndex))
-		args = append(args, *req.FullName)
+	if req.FirstName != nil {
+		updates = append(updates, fmt.Sprintf("first_name = $%d", argIndex))
+		args = append(args, *req.FirstName)
+		argIndex++
+	}
+	if req.LastName != nil {
+		updates = append(updates, fmt.Sprintf("last_name = $%d", argIndex))
+		args = append(args, *req.LastName)
 		argIndex++
 	}
 	if req.Email != nil {
@@ -295,11 +304,9 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		return nil, fmt.Errorf("no fields to update")
 	}
 
-
 	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now())
 	argIndex++
-
 
 	args = append(args, id)
 
@@ -307,23 +314,30 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		UPDATE %s.patients
 		SET %s
 		WHERE id = $%d AND deleted_at IS NULL
-		RETURNING id, full_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
+		RETURNING id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
 	`, pq.QuoteIdentifier(schemaName), strings.Join(updates, ", "), argIndex)
 
 	var patient PatientResponse
 	var dob sql.NullString
+	var address sql.NullString
+	var email sql.NullString
+	var phoneNumber sql.NullString
+	var emergencyContactName sql.NullString
+	var emergencyContactPhone sql.NullString
+	var medicalNotes sql.NullString
 	var updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&patient.ID,
-		&patient.FullName,
-		&patient.Email,
-		&patient.PhoneNumber,
+		&patient.FirstName,
+		&patient.LastName,
+		&email,
+		&phoneNumber,
 		&dob,
-		&patient.Address,
-		&patient.EmergencyContactName,
-		&patient.EmergencyContactPhone,
-		&patient.MedicalNotes,
+		&address,
+		&emergencyContactName,
+		&emergencyContactPhone,
+		&medicalNotes,
 		&patient.IsActive,
 		&patient.CreatedAt,
 		&updatedAt,
@@ -336,8 +350,27 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		return nil, fmt.Errorf("failed to update patient: %w", err)
 	}
 
+	// Handle nullable fields
+	if email.Valid {
+		patient.Email = email.String
+	}
+	if phoneNumber.Valid {
+		patient.PhoneNumber = phoneNumber.String
+	}
 	if dob.Valid {
 		patient.DateOfBirth = &dob.String
+	}
+	if address.Valid {
+		patient.Address = address.String
+	}
+	if emergencyContactName.Valid {
+		patient.EmergencyContactName = emergencyContactName.String
+	}
+	if emergencyContactPhone.Valid {
+		patient.EmergencyContactPhone = emergencyContactPhone.String
+	}
+	if medicalNotes.Valid {
+		patient.MedicalNotes = medicalNotes.String
 	}
 	if updatedAt.Valid {
 		patient.UpdatedAt = &updatedAt.Time

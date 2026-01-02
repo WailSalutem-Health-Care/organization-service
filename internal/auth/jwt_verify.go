@@ -9,10 +9,11 @@ import (
 
 // Principal holds identity extracted from a validated token.
 type Principal struct {
-	UserID string
-	Roles  []string
-	OrgID  string
-	Claims jwt.MapClaims
+	UserID        string
+	Roles         []string
+	OrgID         string
+	OrgSchemaName string
+	Claims        jwt.MapClaims
 }
 
 var (
@@ -82,16 +83,23 @@ func (v *Verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
 		}
 	}
 
-	// organisationId may be string or number
+	// organizationID may be string or number
 	var orgID string
-	if v, ok := claims["organisationId"].(string); ok {
+	if v, ok := claims["organizationID"].(string); ok {
 		orgID = v
 	}
 
+	// orgSchemaName from claims
+	var orgSchemaName string
+	if v, ok := claims["orgSchemaName"].(string); ok {
+		orgSchemaName = v
+	}
+
 	return &Principal{
-		UserID: sub,
-		Roles:  roles,
-		OrgID:  orgID,
-		Claims: claims,
+		UserID:        sub,
+		Roles:         roles,
+		OrgID:         orgID,
+		OrgSchemaName: orgSchemaName,
+		Claims:        claims,
 	}, nil
 }
