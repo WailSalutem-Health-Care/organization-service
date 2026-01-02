@@ -28,8 +28,8 @@ func (s *Service) CreateUser(req CreateUserRequest, principal *auth.Principal, t
 
 	if s.hasRole(principal, "SUPER_ADMIN") {
 		if targetOrgID == "" {
-			log.Printf("SUPER_ADMIN must provide X-Organization-Id header")
-			return nil, fmt.Errorf("SUPER_ADMIN must provide X-Organization-Id header to specify target organization")
+			log.Printf("SUPER_ADMIN must provide X-Organization-ID header")
+			return nil, fmt.Errorf("SUPER_ADMIN must provide X-Organization-ID header to specify target organization")
 		}
 		effectiveOrgID = targetOrgID
 		log.Printf("SUPER_ADMIN creating user in org: %s", effectiveOrgID)
@@ -153,7 +153,7 @@ func (s *Service) GetUser(userID string, principal *auth.Principal, targetOrgID 
 		} else {
 			effectiveOrgID = principal.OrgID
 			if effectiveOrgID == "" {
-				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-Id header provided")
+				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-ID header provided")
 				return nil, ErrInvalidOrgSchema
 			}
 			log.Printf("SUPER_ADMIN getting user from own org: %s", effectiveOrgID)
@@ -196,7 +196,7 @@ func (s *Service) ListUsers(principal *auth.Principal, targetOrgID string) ([]Us
 		} else {
 			effectiveOrgID = principal.OrgID
 			if effectiveOrgID == "" {
-				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-Id header provided")
+				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-ID header provided")
 				return nil, ErrInvalidOrgSchema
 			}
 			log.Printf("SUPER_ADMIN listing users from own org: %s", effectiveOrgID)
@@ -239,7 +239,7 @@ func (s *Service) UpdateUser(userID string, req UpdateUserRequest, principal *au
 		} else {
 			effectiveOrgID = principal.OrgID
 			if effectiveOrgID == "" {
-				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-Id header provided")
+				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-ID header provided")
 				return nil, ErrInvalidOrgSchema
 			}
 			log.Printf("SUPER_ADMIN updating user in own org: %s", effectiveOrgID)

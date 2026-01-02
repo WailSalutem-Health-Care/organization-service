@@ -30,7 +30,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetOrgID := r.Header.Get("X-Organization-Id")
+	targetOrgID := r.Header.Get("X-Organization-ID")
 
 	user, err := h.service.CreateUser(req, principal, targetOrgID)
 	if err != nil {
@@ -61,7 +61,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetOrgID := r.Header.Get("X-Organization-Id")
+	targetOrgID := r.Header.Get("X-Organization-ID")
 
 	users, err := h.service.ListUsers(principal, targetOrgID)
 	if err != nil {
@@ -94,7 +94,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["id"]
 
-	targetOrgID := r.Header.Get("X-Organization-Id")
+	targetOrgID := r.Header.Get("X-Organization-ID")
 
 	user, err := h.service.GetUser(userID, principal, targetOrgID)
 	if err != nil {
@@ -133,7 +133,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetOrgID := r.Header.Get("X-Organization-Id")
+	targetOrgID := r.Header.Get("X-Organization-ID")
 
 	user, err := h.service.UpdateUser(userID, req, principal, targetOrgID)
 	if err != nil {
