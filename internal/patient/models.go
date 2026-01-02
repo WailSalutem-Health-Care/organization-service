@@ -2,17 +2,25 @@ package patient
 
 import "time"
 
-// CreatePatientRequest represents the request to create a new patient
+// CreatePatientRequest represents the request to create a new patient user
 type CreatePatientRequest struct {
-	FirstName             string `json:"first_name" validate:"required"`
-	LastName              string `json:"last_name" validate:"required"`
-	Email                 string `json:"email"`
-	PhoneNumber           string `json:"phone_number"`
-	DateOfBirth           string `json:"date_of_birth"` // Format: YYYY-MM-DD
-	Address               string `json:"address"`
-	EmergencyContactName  string `json:"emergency_contact_name"`
-	EmergencyContactPhone string `json:"emergency_contact_phone"`
-	MedicalNotes          string `json:"medical_notes"`
+	// Authentication fields
+	Username          string `json:"username" validate:"required"`
+	TemporaryPassword string `json:"temporaryPassword"`
+	SendResetEmail    bool   `json:"sendResetEmail"`
+
+	// Personal information
+	FirstName   string `json:"firstName" validate:"required"`
+	LastName    string `json:"lastName" validate:"required"`
+	Email       string `json:"email" validate:"required"`
+	PhoneNumber string `json:"phoneNumber"`
+
+	// Patient-specific fields
+	DateOfBirth           string `json:"dateOfBirth" validate:"required"` // Format: YYYY-MM-DD
+	Address               string `json:"address" validate:"required"`
+	EmergencyContactName  string `json:"emergencyContactName"`
+	EmergencyContactPhone string `json:"emergencyContactPhone"`
+	MedicalNotes          string `json:"medicalNotes"`
 }
 
 // UpdatePatientRequest represents the request to update a patient
