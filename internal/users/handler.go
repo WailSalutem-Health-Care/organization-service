@@ -94,7 +94,9 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["id"]
 
-	user, err := h.service.GetUser(userID, principal)
+	targetOrgID := r.Header.Get("X-Organization-Id")
+
+	user, err := h.service.GetUser(userID, principal, targetOrgID)
 	if err != nil {
 		log.Printf("Failed to get user: %v", err)
 
@@ -131,7 +133,9 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.UpdateUser(userID, req, principal)
+	targetOrgID := r.Header.Get("X-Organization-Id")
+
+	user, err := h.service.UpdateUser(userID, req, principal, targetOrgID)
 	if err != nil {
 		log.Printf("Failed to update user: %v", err)
 

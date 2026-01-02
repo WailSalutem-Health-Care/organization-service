@@ -245,6 +245,86 @@ func (k *KeycloakAdminClient) SetPassword(userID string, password string, tempor
 	return nil
 }
 
+// UpdateUser updates a user's profile information in Keycloak
+func (k *KeycloakAdminClient) UpdateUser(userID string, user KeycloakUser) error {
+	token, err := k.getAdminToken()
+	if err != nil {
+		return err
+	}
+
+	updateURL := fmt.Sprintf("%s/admin/realms/%s/users/%s", k.baseURL, k.realm, userID)
+
+	body, err := json.Marshal(user)
+	if err != nil {
+		return fmt.Errorf("failed to marshal user: %w", err)
+	}
+
+	log.Printf("Updating Keycloak user %s with payload: %s", userID, string(body))
+
+	req, err := http.NewRequest("PUT", updateURL, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := k.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Failed to update user: %d - %s", resp.StatusCode, string(body))
+		return fmt.Errorf("%w: status %d", ErrKeycloakRequest, resp.StatusCode)
+	}
+
+	log.Printf("Updated user in Keycloak: %s", userID)
+
+	return nil
+}
+
+// GetUser retrieves a user from Keycloak by user ID
+func (k *KeycloakAdminClient) GetUser(userID string) (*KeycloakUser, error) {
+	token, err := k.getAdminToken()
+	if err != nil {
+		return nil, err
+	}
+
+	getUserURL := fmt.Sprintf("%s/admin/realms/%s/users/%s", k.baseURL, k.realm, userID)
+
+	req, err := http.NewRequest("GET", getUserURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := k.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Failed to get user from Keycloak: %d - %s", resp.StatusCode, string(body))
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("%w: status %d", ErrKeycloakRequest, resp.StatusCode)
+	}
+
+	var user KeycloakUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("failed to decode user: %w", err)
+	}
+
+	return &user, nil
+}
+
 // GetRole fetches a realm role by name
 func (k *KeycloakAdminClient) GetRole(roleName string) (*KeycloakRole, error) {
 	token, err := k.getAdminToken()
