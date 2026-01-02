@@ -98,7 +98,7 @@ func (h *Handler) CreatePatient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	patient, err := h.service.CreatePatient(r.Context(), schemaName, req)
+	patient, err := h.service.CreatePatient(r.Context(), schemaName, orgID, req)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "creation_failed", err.Error())
 		return

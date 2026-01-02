@@ -131,12 +131,21 @@ func (s *Service) CreateUser(req CreateUserRequest, principal *auth.Principal, t
 		OrgSchemaName:  orgSchemaName,
 	}
 
+	// Reject PATIENT role - patients should be created via /organization/patients endpoint
+	if req.Role == "PATIENT" {
+		log.Printf("Attempted to create PATIENT via users endpoint: %s", keycloakUserID)
+		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
+		return nil, fmt.Errorf("PATIENT users must be created via /organization/patients endpoint")
+	}
+
+	// Create user in users table (for CAREGIVER, MUNICIPALITY, INSURER, etc.)
 	err = s.repo.Create(user)
 	if err != nil {
 		log.Printf("Failed to create user in database, rolling back: %s", keycloakUserID)
 		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
 		return nil, fmt.Errorf("failed to create user in database: %w", err)
 	}
+	log.Printf("Successfully created user record: %s", user.ID)
 
 	log.Printf("Successfully created user end-to-end: %s (Keycloak ID: %s, DB ID: %s)", req.Username, keycloakUserID, user.ID)
 

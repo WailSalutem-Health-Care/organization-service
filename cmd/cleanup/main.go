@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/db"
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/organization"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/db"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
 )
 
 func main() {
