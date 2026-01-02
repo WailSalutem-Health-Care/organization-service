@@ -318,6 +318,75 @@ func (s *Service) UpdateUser(userID string, req UpdateUserRequest, principal *au
 	return user, nil
 }
 
+func (s *Service) UpdateMyProfile(req UpdateUserRequest, principal *auth.Principal) (*User, error) {
+	if principal.OrgID == "" {
+		log.Printf("User token missing organizationID claim - cannot update profile")
+		return nil, fmt.Errorf("user token must contain organizationID claim")
+	}
+
+	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(principal.OrgID)
+	if err != nil {
+		log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+		return nil, ErrInvalidOrgSchema
+	}
+
+	user, err := s.repo.GetByKeycloakID(orgSchemaName, principal.UserID)
+	if err != nil {
+		log.Printf("Failed to get user by Keycloak ID: %v", err)
+		return nil, ErrUserNotFound
+	}
+
+	keycloakUpdateNeeded := false
+
+	if req.Email != "" {
+		user.Email = req.Email
+		keycloakUpdateNeeded = true
+	}
+	if req.FirstName != "" {
+		user.FirstName = req.FirstName
+		keycloakUpdateNeeded = true
+	}
+	if req.LastName != "" {
+		user.LastName = req.LastName
+		keycloakUpdateNeeded = true
+	}
+	if req.PhoneNumber != "" {
+		user.PhoneNumber = req.PhoneNumber
+	}
+
+	if keycloakUpdateNeeded {
+		keycloakUserData, err := s.keycloakAdmin.GetUser(user.KeycloakUserID)
+		if err != nil {
+			log.Printf("Failed to get user from Keycloak: %v", err)
+			return nil, fmt.Errorf("failed to get user from Keycloak: %w", err)
+		}
+
+		keycloakUser := auth.KeycloakUser{
+			Username:  keycloakUserData.Username,
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Enabled:   true,
+		}
+
+		err = s.keycloakAdmin.UpdateUser(user.KeycloakUserID, keycloakUser)
+		if err != nil {
+			log.Printf("Failed to update user in Keycloak: %v", err)
+			return nil, fmt.Errorf("failed to update user in Keycloak: %w", err)
+		}
+		log.Printf("User updated their own profile in Keycloak: %s", user.KeycloakUserID)
+	}
+
+	err = s.repo.Update(user)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("User updated their own profile: %s (Keycloak ID: %s)", user.Email, user.KeycloakUserID)
+
+	return user, nil
+}
+
 func (s *Service) ResetPassword(userID string, req ResetPasswordRequest, principal *auth.Principal) error {
 	orgSchemaName := principal.OrgSchemaName
 	if orgSchemaName == "" {

@@ -319,19 +319,25 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 
 	var patient PatientResponse
 	var dob sql.NullString
+	var address sql.NullString
+	var email sql.NullString
+	var phoneNumber sql.NullString
+	var emergencyContactName sql.NullString
+	var emergencyContactPhone sql.NullString
+	var medicalNotes sql.NullString
 	var updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&patient.ID,
 		&patient.FirstName,
 		&patient.LastName,
-		&patient.Email,
-		&patient.PhoneNumber,
+		&email,
+		&phoneNumber,
 		&dob,
-		&patient.Address,
-		&patient.EmergencyContactName,
-		&patient.EmergencyContactPhone,
-		&patient.MedicalNotes,
+		&address,
+		&emergencyContactName,
+		&emergencyContactPhone,
+		&medicalNotes,
 		&patient.IsActive,
 		&patient.CreatedAt,
 		&updatedAt,
@@ -344,8 +350,27 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		return nil, fmt.Errorf("failed to update patient: %w", err)
 	}
 
+	// Handle nullable fields
+	if email.Valid {
+		patient.Email = email.String
+	}
+	if phoneNumber.Valid {
+		patient.PhoneNumber = phoneNumber.String
+	}
 	if dob.Valid {
 		patient.DateOfBirth = &dob.String
+	}
+	if address.Valid {
+		patient.Address = address.String
+	}
+	if emergencyContactName.Valid {
+		patient.EmergencyContactName = emergencyContactName.String
+	}
+	if emergencyContactPhone.Valid {
+		patient.EmergencyContactPhone = emergencyContactPhone.String
+	}
+	if medicalNotes.Valid {
+		patient.MedicalNotes = medicalNotes.String
 	}
 	if updatedAt.Valid {
 		patient.UpdatedAt = &updatedAt.Time

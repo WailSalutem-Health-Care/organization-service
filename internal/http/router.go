@@ -43,7 +43,6 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		w.Write([]byte(`{"status":"ok","service":"organization-service"}`))
 	}).Methods("GET")
 
-	// Organization routes (SUPER_ADMIN only)
 	r.Handle("/organizations",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("organization:create", perms)(
@@ -74,7 +73,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 				http.HandlerFunc(orgHandler.UpdateOrganization),
 			),
 		),
-	).Methods("PUT")
+	).Methods("PUT", "PATCH")
 
 	r.Handle("/organizations/{id}",
 		auth.Middleware(verifier)(
@@ -84,7 +83,6 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("DELETE")
 
-	// Patient routes (ORG_ADMIN and CAREGIVER can view, ORG_ADMIN can manage)
 	r.Handle("/organization/patients",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:create", perms)(
@@ -115,7 +113,7 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 				http.HandlerFunc(patientHandler.UpdatePatient),
 			),
 		),
-	).Methods("PUT")
+	).Methods("PUT", "PATCH")
 
 	r.Handle("/organization/patients/{id}",
 		auth.Middleware(verifier)(
@@ -125,7 +123,6 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 		),
 	).Methods("DELETE")
 
-	// User management routes (ORG_ADMIN and SUPER_ADMIN)
 	r.Handle("/organization/users",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("user:create", perms)(
@@ -141,6 +138,12 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 			),
 		),
 	).Methods("GET")
+
+	r.Handle("/organization/users/me",
+		auth.Middleware(verifier)(
+			http.HandlerFunc(userHandler.UpdateMyProfile),
+		),
+	).Methods("PATCH")
 
 	r.Handle("/organization/users/{id}",
 		auth.Middleware(verifier)(
