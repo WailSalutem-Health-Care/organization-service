@@ -4,7 +4,8 @@ import "time"
 
 // CreatePatientRequest represents the request to create a new patient
 type CreatePatientRequest struct {
-	FullName              string `json:"full_name" validate:"required"`
+	FirstName             string `json:"first_name" validate:"required"`
+	LastName              string `json:"last_name" validate:"required"`
 	Email                 string `json:"email"`
 	PhoneNumber           string `json:"phone_number"`
 	DateOfBirth           string `json:"date_of_birth"` // Format: YYYY-MM-DD
@@ -16,7 +17,8 @@ type CreatePatientRequest struct {
 
 // UpdatePatientRequest represents the request to update a patient
 type UpdatePatientRequest struct {
-	FullName              *string `json:"full_name,omitempty"`
+	FirstName             *string `json:"first_name,omitempty"`
+	LastName              *string `json:"last_name,omitempty"`
 	Email                 *string `json:"email,omitempty"`
 	PhoneNumber           *string `json:"phone_number,omitempty"`
 	DateOfBirth           *string `json:"date_of_birth,omitempty"`
@@ -30,7 +32,8 @@ type UpdatePatientRequest struct {
 // PatientResponse represents the patient data returned to clients
 type PatientResponse struct {
 	ID                    string     `json:"id"`
-	FullName              string     `json:"full_name"`
+	FirstName             string     `json:"first_name"`
+	LastName              string     `json:"last_name"`
 	Email                 string     `json:"email"`
 	PhoneNumber           string     `json:"phone_number"`
 	DateOfBirth           *string    `json:"date_of_birth,omitempty"`

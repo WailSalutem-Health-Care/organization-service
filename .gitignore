@@ -1,1 +1,12 @@
 .env
+
+# Compiled binaries
+app
+api
+*.exe
+*.out
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/
