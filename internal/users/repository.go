@@ -6,15 +6,20 @@ import (
 	"log"
 	"time"
 
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 	"github.com/google/uuid"
 )
 
 type Repository struct {
-	db *sql.DB
+	db        *sql.DB
+	publisher *messaging.Publisher
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
+	return &Repository{
+		db:        db,
+		publisher: publisher,
+	}
 }
 
 func (r *Repository) GetSchemaNameByOrgID(orgID string) (string, error) {
@@ -72,6 +77,28 @@ func (r *Repository) Create(user *User) error {
 	}
 
 	log.Printf("Created user in database: %s %s (schema: %s)", user.FirstName, user.LastName, user.OrgSchemaName)
+
+	// Publish user.created event
+	if r.publisher != nil {
+		event := messaging.UserCreatedEvent{
+			BaseEvent: messaging.NewBaseEvent(messaging.EventUserCreated),
+			Data: messaging.UserCreatedData{
+				UserID:         user.ID,
+				KeycloakUserID: user.KeycloakUserID,
+				OrganizationID: user.OrgID,
+				Email:          user.Email,
+				FirstName:      user.FirstName,
+				LastName:       user.LastName,
+				Role:           user.Role,
+				IsActive:       true,
+				CreatedAt:      user.CreatedAt,
+			},
+		}
+
+		if err := r.publisher.Publish(nil, messaging.EventUserCreated, event); err != nil {
+			log.Printf("Warning: failed to publish user.created event: %v", err)
+		}
+	}
 
 	return nil
 }
@@ -300,16 +327,23 @@ func (r *Repository) Update(user *User) error {
 	return nil
 }
 
-func (r *Repository) Delete(schemaName, userID string) error {
+func (r *Repository) Delete(schemaName, orgID, userID string, role string) error {
 	if err := r.ValidateOrgSchema(schemaName); err != nil {
 		return err
 	}
 
-	query := fmt.Sprintf(`DELETE FROM %s.users WHERE id = $1`, schemaName)
+	// Soft delete: Set deleted_at timestamp
+	query := fmt.Sprintf(`
+		UPDATE %s.users 
+		SET deleted_at = $1,
+		    updated_at = $1
+		WHERE id = $2 AND deleted_at IS NULL
+	`, schemaName)
 
-	result, err := r.db.Exec(query, userID)
+	deletedAt := time.Now()
+	result, err := r.db.Exec(query, deletedAt, userID)
 	if err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
+		return fmt.Errorf("failed to soft delete user: %w", err)
 	}
 
 	rows, err := result.RowsAffected()
@@ -319,6 +353,23 @@ func (r *Repository) Delete(schemaName, userID string) error {
 
 	if rows == 0 {
 		return ErrUserNotFound
+	}
+
+	// Publish user.deleted event
+	if r.publisher != nil {
+		event := messaging.UserDeletedEvent{
+			BaseEvent: messaging.NewBaseEvent(messaging.EventUserDeleted),
+			Data: messaging.UserDeletedData{
+				UserID:         userID,
+				OrganizationID: orgID,
+				Role:           role,
+				DeletedAt:      deletedAt,
+			},
+		}
+
+		if err := r.publisher.Publish(nil, messaging.EventUserDeleted, event); err != nil {
+			log.Printf("Warning: failed to publish user.deleted event: %v", err)
+		}
 	}
 
 	log.Printf("Deleted user from database: %s (schema: %s)", userID, schemaName)
