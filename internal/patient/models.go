@@ -21,6 +21,10 @@ type CreatePatientRequest struct {
 	EmergencyContactName  string `json:"emergencyContactName"`
 	EmergencyContactPhone string `json:"emergencyContactPhone"`
 	MedicalNotes          string `json:"medicalNotes"`
+
+	// Care plan fields
+	CareplanType      string `json:"careplanType"`      // e.g., "basic", "intensive", "palliative"
+	CareplanFrequency string `json:"careplanFrequency"` // e.g., "daily", "weekly", "monthly"
 }
 
 // UpdatePatientRequest represents the request to update a patient
@@ -35,11 +39,14 @@ type UpdatePatientRequest struct {
 	EmergencyContactPhone *string `json:"emergency_contact_phone,omitempty"`
 	MedicalNotes          *string `json:"medical_notes,omitempty"`
 	IsActive              *bool   `json:"is_active,omitempty"`
+	CareplanType          *string `json:"careplan_type,omitempty"`
+	CareplanFrequency     *string `json:"careplan_frequency,omitempty"`
 }
 
 // PatientResponse represents the patient data returned to clients
 type PatientResponse struct {
 	ID                    string     `json:"id"`
+	KeycloakUserID        string     `json:"keycloak_user_id"`
 	FirstName             string     `json:"first_name"`
 	LastName              string     `json:"last_name"`
 	Email                 string     `json:"email"`
@@ -49,6 +56,8 @@ type PatientResponse struct {
 	EmergencyContactName  string     `json:"emergency_contact_name"`
 	EmergencyContactPhone string     `json:"emergency_contact_phone"`
 	MedicalNotes          string     `json:"medical_notes"`
+	CareplanType          string     `json:"careplan_type"`
+	CareplanFrequency     string     `json:"careplan_frequency"`
 	IsActive              bool       `json:"is_active"`
 	CreatedAt             time.Time  `json:"created_at"`
 	UpdatedAt             *time.Time `json:"updated_at,omitempty"`
