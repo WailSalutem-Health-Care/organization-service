@@ -97,7 +97,7 @@ func (s *Service) CreatePatient(ctx context.Context, schemaName string, orgID st
 	}
 
 	// Create patient in database with keycloak_user_id
-	patient, err := s.repo.CreatePatient(ctx, schemaName, keycloakUserID, req)
+	patient, err := s.repo.CreatePatient(ctx, schemaName, orgID, keycloakUserID, req)
 	if err != nil {
 		log.Printf("Failed to create patient in database, rolling back: %s", keycloakUserID)
 		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
@@ -133,8 +133,8 @@ func (s *Service) UpdatePatient(ctx context.Context, schemaName string, id strin
 	return patient, nil
 }
 
-func (s *Service) DeletePatient(ctx context.Context, schemaName string, id string) error {
-	err := s.repo.DeletePatient(ctx, schemaName, id)
+func (s *Service) DeletePatient(ctx context.Context, schemaName string, orgID string, id string) error {
+	err := s.repo.DeletePatient(ctx, schemaName, orgID, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete patient: %w", err)
 	}

@@ -374,7 +374,7 @@ func (h *Handler) DeletePatient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.DeletePatient(r.Context(), schemaName, id)
+	err = h.service.DeletePatient(r.Context(), schemaName, orgID, id)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "deletion_failed", err.Error())
 		return
