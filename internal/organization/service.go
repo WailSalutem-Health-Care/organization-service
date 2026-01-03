@@ -3,6 +3,8 @@ package organization
 import (
 	"context"
 	"fmt"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 )
 
 type Service struct {
@@ -26,15 +28,54 @@ func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganization
 	return org, nil
 }
 
-func (s *Service) ListOrganizations(ctx context.Context) ([]OrganizationResponse, error) {
-	orgs, err := s.repo.ListOrganizations(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list organizations: %w", err)
+func (s *Service) ListOrganizations(ctx context.Context, principal *auth.Principal) ([]OrganizationResponse, error) {
+	// Check if user is SUPER_ADMIN
+	isSuperAdmin := false
+	for _, role := range principal.Roles {
+		if role == "SUPER_ADMIN" {
+			isSuperAdmin = true
+			break
+		}
 	}
-	return orgs, nil
+
+	// SUPER_ADMIN can see all organizations
+	if isSuperAdmin {
+		orgs, err := s.repo.ListOrganizations(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list organizations: %w", err)
+		}
+		return orgs, nil
+	}
+
+	// ORG_ADMIN can only see their own organization
+	if principal.OrgID == "" {
+		return nil, fmt.Errorf("no organization associated with this user")
+	}
+
+	org, err := s.repo.GetOrganization(ctx, principal.OrgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get organization: %w", err)
+	}
+
+	// Return as array with single organization
+	return []OrganizationResponse{*org}, nil
 }
 
-func (s *Service) GetOrganization(ctx context.Context, id string) (*OrganizationResponse, error) {
+func (s *Service) GetOrganization(ctx context.Context, id string, principal *auth.Principal) (*OrganizationResponse, error) {
+	// Check if user is SUPER_ADMIN
+	isSuperAdmin := false
+	for _, role := range principal.Roles {
+		if role == "SUPER_ADMIN" {
+			isSuperAdmin = true
+			break
+		}
+	}
+
+	// ORG_ADMIN can only view their own organization
+	if !isSuperAdmin && principal.OrgID != id {
+		return nil, fmt.Errorf("forbidden")
+	}
+
 	org, err := s.repo.GetOrganization(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
@@ -42,7 +83,21 @@ func (s *Service) GetOrganization(ctx context.Context, id string) (*Organization
 	return org, nil
 }
 
-func (s *Service) UpdateOrganization(ctx context.Context, id string, req UpdateOrganizationRequest) (*OrganizationResponse, error) {
+func (s *Service) UpdateOrganization(ctx context.Context, id string, req UpdateOrganizationRequest, principal *auth.Principal) (*OrganizationResponse, error) {
+	// Check if user is SUPER_ADMIN
+	isSuperAdmin := false
+	for _, role := range principal.Roles {
+		if role == "SUPER_ADMIN" {
+			isSuperAdmin = true
+			break
+		}
+	}
+
+	// Only SUPER_ADMIN can update organizations
+	if !isSuperAdmin {
+		return nil, fmt.Errorf("forbidden")
+	}
+
 	org, err := s.repo.UpdateOrganization(ctx, id, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update organization: %w", err)

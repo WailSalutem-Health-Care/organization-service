@@ -4,22 +4,28 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
 type Repository struct {
-	db *sql.DB
+	db        *sql.DB
+	publisher *messaging.Publisher
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
+	return &Repository{
+		db:        db,
+		publisher: publisher,
+	}
 }
 
-func (r *Repository) CreatePatient(ctx context.Context, schemaName string, keycloakUserID string, req CreatePatientRequest) (*PatientResponse, error) {
+func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID string, keycloakUserID string, req CreatePatientRequest) (*PatientResponse, error) {
 	patientID := uuid.New()
 	createdAt := time.Now()
 
@@ -110,7 +116,38 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, keycl
 		patient.CareplanFrequency = careplanFrequency.String
 	}
 
+	// Publish patient.created event
+	if r.publisher != nil {
+		event := messaging.PatientCreatedEvent{
+			BaseEvent: messaging.NewBaseEvent(messaging.EventPatientCreated),
+			Data: messaging.PatientCreatedData{
+				PatientID:      patient.ID,
+				KeycloakUserID: keycloakUserID,
+				OrganizationID: orgID,
+				FirstName:      patient.FirstName,
+				LastName:       patient.LastName,
+				Email:          patient.Email,
+				PhoneNumber:    patient.PhoneNumber,
+				DateOfBirth:    getStringValue(patient.DateOfBirth),
+				IsActive:       patient.IsActive,
+				CreatedAt:      patient.CreatedAt,
+			},
+		}
+
+		if err := r.publisher.Publish(ctx, messaging.EventPatientCreated, event); err != nil {
+			log.Printf("Warning: failed to publish patient.created event: %v", err)
+		}
+	}
+
 	return &patient, nil
+}
+
+// Helper function to safely get string value from pointer
+func getStringValue(ptr *string) string {
+	if ptr != nil {
+		return *ptr
+	}
+	return ""
 }
 
 func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]PatientResponse, error) {
@@ -446,14 +483,15 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	return &patient, nil
 }
 
-func (r *Repository) DeletePatient(ctx context.Context, schemaName string, id string) error {
+func (r *Repository) DeletePatient(ctx context.Context, schemaName string, orgID string, id string) error {
 	query := fmt.Sprintf(`
 		UPDATE %s.patients
 		SET deleted_at = $1
 		WHERE id = $2 AND deleted_at IS NULL
 	`, pq.QuoteIdentifier(schemaName))
 
-	result, err := r.db.ExecContext(ctx, query, time.Now(), id)
+	deletedAt := time.Now()
+	result, err := r.db.ExecContext(ctx, query, deletedAt, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete patient: %w", err)
 	}
@@ -465,6 +503,22 @@ func (r *Repository) DeletePatient(ctx context.Context, schemaName string, id st
 
 	if rows == 0 {
 		return fmt.Errorf("patient not found")
+	}
+
+	// Publish patient.deleted event
+	if r.publisher != nil {
+		event := messaging.PatientDeletedEvent{
+			BaseEvent: messaging.NewBaseEvent(messaging.EventPatientDeleted),
+			Data: messaging.PatientDeletedData{
+				PatientID:      id,
+				OrganizationID: orgID,
+				DeletedAt:      deletedAt,
+			},
+		}
+
+		if err := r.publisher.Publish(ctx, messaging.EventPatientDeleted, event); err != nil {
+			log.Printf("Warning: failed to publish patient.deleted event: %v", err)
+		}
 	}
 
 	return nil
