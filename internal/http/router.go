@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/patient"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/users"
@@ -13,9 +14,9 @@ import (
 )
 
 // SetupRouter initializes all routes for the application
-func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string) *mux.Router {
+func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher *messaging.Publisher) *mux.Router {
 	// Initialize organization components
-	orgRepo := organization.NewRepository(db)
+	orgRepo := organization.NewRepository(db, publisher)
 	orgService := organization.NewService(orgRepo)
 	orgHandler := organization.NewHandler(orgService)
 
@@ -26,12 +27,12 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string)
 	}
 
 	// Initialize patient components
-	patientRepo := patient.NewRepository(db)
+	patientRepo := patient.NewRepository(db, publisher)
 	patientService := patient.NewService(patientRepo, keycloakAdmin)
 	patientHandler := patient.NewHandler(patientService, db)
 
 	// Initialize user components
-	userRepo := users.NewRepository(db)
+	userRepo := users.NewRepository(db, publisher)
 	userService := users.NewService(userRepo, keycloakAdmin)
 	userHandler := users.NewHandler(userService)
 

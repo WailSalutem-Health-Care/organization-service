@@ -8,6 +8,7 @@ import (
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/db"
 	httpRouter "github.com/WailSalutem-Health-Care/organization-service/internal/http"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 )
 
 func main() {
@@ -39,8 +40,19 @@ func main() {
 	// Create token verifier
 	ver := auth.NewVerifier(cfg, jwks)
 
+	// Initialize RabbitMQ publisher (optional dependency)
+	publisher, err := messaging.NewPublisher()
+	if err != nil {
+		log.Printf("Warning: failed to connect to RabbitMQ: %v", err)
+		log.Println("Service will continue without event publishing (RabbitMQ optional)")
+		publisher = nil
+	} else {
+		defer publisher.Close()
+		log.Println("✓ RabbitMQ publisher initialized")
+	}
+
 	// Setup router with all routes
-	router := httpRouter.SetupRouter(database, ver, perms)
+	router := httpRouter.SetupRouter(database, ver, perms, publisher)
 
 	log.Println("auth configured, jwks loaded, database connected, listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", router))
