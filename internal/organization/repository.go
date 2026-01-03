@@ -130,7 +130,9 @@ func (r *Repository) createOrganizationSchema(ctx context.Context, tx *sql.Tx, s
 	patientsTable := fmt.Sprintf(`
         CREATE TABLE IF NOT EXISTS %s.patients (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            full_name VARCHAR(255),
+            keycloak_user_id UUID NOT NULL,
+            first_name VARCHAR(255),
+            last_name VARCHAR(255),
             email VARCHAR(255),
             phone_number VARCHAR(50),
             date_of_birth DATE,
@@ -138,6 +140,8 @@ func (r *Repository) createOrganizationSchema(ctx context.Context, tx *sql.Tx, s
             emergency_contact_name VARCHAR(255),
             emergency_contact_phone VARCHAR(50),
             medical_notes TEXT,
+            careplan_type VARCHAR(100),
+            careplan_frequency VARCHAR(50),
             is_active BOOLEAN DEFAULT true,
             created_at TIMESTAMP DEFAULT now(),
             updated_at TIMESTAMP,
@@ -191,7 +195,9 @@ func (r *Repository) createOrganizationSchema(ctx context.Context, tx *sql.Tx, s
             care_session_id UUID UNIQUE,
             patient_id UUID,
             rating INTEGER CHECK (rating BETWEEN 1 AND 5),
-            created_at TIMESTAMP DEFAULT now()
+            patient_feedback TEXT,
+            created_at TIMESTAMP DEFAULT now(),
+            deleted_at TIMESTAMP
         )
     `, pq.QuoteIdentifier(schemaName))
 

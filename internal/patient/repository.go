@@ -19,15 +19,19 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req CreatePatientRequest) (*PatientResponse, error) {
+func (r *Repository) CreatePatient(ctx context.Context, schemaName string, keycloakUserID string, req CreatePatientRequest) (*PatientResponse, error) {
 	patientID := uuid.New()
 	createdAt := time.Now()
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s.patients 
-		(id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11)
-		RETURNING id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at
+		(id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		 emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, careplan_frequency, 
+		 is_active, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14)
+		RETURNING id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+				  emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
+				  careplan_frequency, is_active, created_at
 	`, pq.QuoteIdentifier(schemaName))
 
 	var patient PatientResponse
@@ -38,9 +42,12 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 	var emergencyContactName sql.NullString
 	var emergencyContactPhone sql.NullString
 	var medicalNotes sql.NullString
+	var careplanType sql.NullString
+	var careplanFrequency sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query,
 		patientID,
+		keycloakUserID,
 		req.FirstName,
 		req.LastName,
 		req.Email,
@@ -50,9 +57,12 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 		req.EmergencyContactName,
 		req.EmergencyContactPhone,
 		req.MedicalNotes,
+		req.CareplanType,
+		req.CareplanFrequency,
 		createdAt,
 	).Scan(
 		&patient.ID,
+		&patient.KeycloakUserID,
 		&patient.FirstName,
 		&patient.LastName,
 		&email,
@@ -62,6 +72,8 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 		&emergencyContactName,
 		&emergencyContactPhone,
 		&medicalNotes,
+		&careplanType,
+		&careplanFrequency,
 		&patient.IsActive,
 		&patient.CreatedAt,
 	)
@@ -91,13 +103,21 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, req C
 	if medicalNotes.Valid {
 		patient.MedicalNotes = medicalNotes.String
 	}
+	if careplanType.Valid {
+		patient.CareplanType = careplanType.String
+	}
+	if careplanFrequency.Valid {
+		patient.CareplanFrequency = careplanFrequency.String
+	}
 
 	return &patient, nil
 }
 
 func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]PatientResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
+		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
+			   careplan_frequency, is_active, created_at, updated_at
 		FROM %s.patients
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -119,10 +139,13 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 		var emergencyContactName sql.NullString
 		var emergencyContactPhone sql.NullString
 		var medicalNotes sql.NullString
+		var careplanType sql.NullString
+		var careplanFrequency sql.NullString
 		var updatedAt sql.NullTime
 
 		err := rows.Scan(
 			&patient.ID,
+			&patient.KeycloakUserID,
 			&patient.FirstName,
 			&patient.LastName,
 			&email,
@@ -132,6 +155,8 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 			&emergencyContactName,
 			&emergencyContactPhone,
 			&medicalNotes,
+			&careplanType,
+			&careplanFrequency,
 			&patient.IsActive,
 			&patient.CreatedAt,
 			&updatedAt,
@@ -161,6 +186,12 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 		if medicalNotes.Valid {
 			patient.MedicalNotes = medicalNotes.String
 		}
+		if careplanType.Valid {
+			patient.CareplanType = careplanType.String
+		}
+		if careplanFrequency.Valid {
+			patient.CareplanFrequency = careplanFrequency.String
+		}
 		if updatedAt.Valid {
 			patient.UpdatedAt = &updatedAt.Time
 		}
@@ -177,7 +208,9 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 
 func (r *Repository) GetPatient(ctx context.Context, schemaName string, id string) (*PatientResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
+		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
+			   careplan_frequency, is_active, created_at, updated_at
 		FROM %s.patients
 		WHERE id = $1 AND deleted_at IS NULL
 	`, pq.QuoteIdentifier(schemaName))
@@ -190,10 +223,13 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 	var emergencyContactName sql.NullString
 	var emergencyContactPhone sql.NullString
 	var medicalNotes sql.NullString
+	var careplanType sql.NullString
+	var careplanFrequency sql.NullString
 	var updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&patient.ID,
+		&patient.KeycloakUserID,
 		&patient.FirstName,
 		&patient.LastName,
 		&email,
@@ -203,6 +239,8 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 		&emergencyContactName,
 		&emergencyContactPhone,
 		&medicalNotes,
+		&careplanType,
+		&careplanFrequency,
 		&patient.IsActive,
 		&patient.CreatedAt,
 		&updatedAt,
@@ -235,6 +273,12 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 	}
 	if medicalNotes.Valid {
 		patient.MedicalNotes = medicalNotes.String
+	}
+	if careplanType.Valid {
+		patient.CareplanType = careplanType.String
+	}
+	if careplanFrequency.Valid {
+		patient.CareplanFrequency = careplanFrequency.String
 	}
 	if updatedAt.Valid {
 		patient.UpdatedAt = &updatedAt.Time
@@ -294,6 +338,16 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		args = append(args, *req.MedicalNotes)
 		argIndex++
 	}
+	if req.CareplanType != nil {
+		updates = append(updates, fmt.Sprintf("careplan_type = $%d", argIndex))
+		args = append(args, *req.CareplanType)
+		argIndex++
+	}
+	if req.CareplanFrequency != nil {
+		updates = append(updates, fmt.Sprintf("careplan_frequency = $%d", argIndex))
+		args = append(args, *req.CareplanFrequency)
+		argIndex++
+	}
 	if req.IsActive != nil {
 		updates = append(updates, fmt.Sprintf("is_active = $%d", argIndex))
 		args = append(args, *req.IsActive)
@@ -314,7 +368,9 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		UPDATE %s.patients
 		SET %s
 		WHERE id = $%d AND deleted_at IS NULL
-		RETURNING id, first_name, last_name, email, phone_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, medical_notes, is_active, created_at, updated_at
+		RETURNING id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+				  emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
+				  careplan_frequency, is_active, created_at, updated_at
 	`, pq.QuoteIdentifier(schemaName), strings.Join(updates, ", "), argIndex)
 
 	var patient PatientResponse
@@ -325,10 +381,13 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	var emergencyContactName sql.NullString
 	var emergencyContactPhone sql.NullString
 	var medicalNotes sql.NullString
+	var careplanType sql.NullString
+	var careplanFrequency sql.NullString
 	var updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&patient.ID,
+		&patient.KeycloakUserID,
 		&patient.FirstName,
 		&patient.LastName,
 		&email,
@@ -338,6 +397,8 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		&emergencyContactName,
 		&emergencyContactPhone,
 		&medicalNotes,
+		&careplanType,
+		&careplanFrequency,
 		&patient.IsActive,
 		&patient.CreatedAt,
 		&updatedAt,
@@ -371,6 +432,12 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	}
 	if medicalNotes.Valid {
 		patient.MedicalNotes = medicalNotes.String
+	}
+	if careplanType.Valid {
+		patient.CareplanType = careplanType.String
+	}
+	if careplanFrequency.Valid {
+		patient.CareplanFrequency = careplanFrequency.String
 	}
 	if updatedAt.Valid {
 		patient.UpdatedAt = &updatedAt.Time

@@ -96,8 +96,8 @@ func (s *Service) CreatePatient(ctx context.Context, schemaName string, orgID st
 		return nil, fmt.Errorf("failed to assign PATIENT role: %w", err)
 	}
 
-	// Create patient in database
-	patient, err := s.repo.CreatePatient(ctx, schemaName, req)
+	// Create patient in database with keycloak_user_id
+	patient, err := s.repo.CreatePatient(ctx, schemaName, keycloakUserID, req)
 	if err != nil {
 		log.Printf("Failed to create patient in database, rolling back: %s", keycloakUserID)
 		_ = s.keycloakAdmin.DeleteUser(keycloakUserID)
