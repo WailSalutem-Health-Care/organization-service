@@ -484,13 +484,13 @@ func (s *Service) DeleteUser(userID string, principal *auth.Principal) error {
 		return fmt.Errorf("failed to delete user from Keycloak: %w", err)
 	}
 
-	err = s.repo.Delete(principal.OrgSchemaName, userID)
+	err = s.repo.Delete(principal.OrgSchemaName, user.OrgID, userID, user.Role)
 	if err != nil {
 		log.Printf("WARNING: User deleted from Keycloak but failed to delete from database: %s", userID)
 		return fmt.Errorf("failed to delete user from database: %w", err)
 	}
 
-	log.Printf("Successfully deleted user: %s (Keycloak ID: %s)", user.Email, user.KeycloakUserID)
+	log.Printf("Successfully deleted user: %s (Keycloak ID: %s, Role: %s)", user.Email, user.KeycloakUserID, user.Role)
 
 	return nil
 }

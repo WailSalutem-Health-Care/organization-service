@@ -5,19 +5,25 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
 type Repository struct {
-	db *sql.DB
+	db        *sql.DB
+	publisher *messaging.Publisher
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
+	return &Repository{
+		db:        db,
+		publisher: publisher,
+	}
 }
 
 func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizationRequest) (*OrganizationResponse, error) {
@@ -441,6 +447,12 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 }
 
 func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
+	// Get organization details before deleting (for event)
+	org, err := r.GetOrganization(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get organization for deletion: %w", err)
+	}
+
 	// Soft delete: Set deleted_at timestamp and update status
 	query := `
 		UPDATE wailsalutem.organizations
@@ -450,7 +462,8 @@ func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
 		WHERE id = $2 AND deleted_at IS NULL
 	`
 
-	result, err := r.db.ExecContext(ctx, query, time.Now(), id)
+	deletedAt := time.Now()
+	result, err := r.db.ExecContext(ctx, query, deletedAt, id)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete organization: %w", err)
 	}
@@ -467,6 +480,24 @@ func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
 	schemaCacheMutex.Lock()
 	delete(schemaCache, id)
 	schemaCacheMutex.Unlock()
+
+	// Publish organization.deleted event
+	if r.publisher != nil {
+		event := messaging.OrganizationDeletedEvent{
+			BaseEvent: messaging.NewBaseEvent(messaging.EventOrganizationDeleted),
+			Data: messaging.OrganizationDeletedData{
+				OrganizationID:   org.ID,
+				OrganizationName: org.Name,
+				SchemaName:       org.SchemaName,
+				DeletedAt:        deletedAt,
+			},
+		}
+
+		if err := r.publisher.Publish(ctx, messaging.EventOrganizationDeleted, event); err != nil {
+			log.Printf("Warning: failed to publish organization.deleted event: %v", err)
+			// Don't fail the delete if event publishing fails
+		}
+	}
 
 	// NOTE: Schema and all data are retained for 3 years as per retention policy
 	// Run cleanup job periodically to purge organizations deleted more than 3 years ago
