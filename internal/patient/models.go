@@ -1,6 +1,10 @@
 package patient
 
-import "time"
+import (
+	"time"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
+)
 
 // CreatePatientRequest represents the request to create a new patient user
 type CreatePatientRequest struct {
@@ -61,4 +65,11 @@ type PatientResponse struct {
 	IsActive              bool       `json:"is_active"`
 	CreatedAt             time.Time  `json:"created_at"`
 	UpdatedAt             *time.Time `json:"updated_at,omitempty"`
+}
+
+// PaginatedPatientListResponse represents a paginated list of patients
+type PaginatedPatientListResponse struct {
+	Success    bool             `json:"success"`
+	Patients   []PatientResponse `json:"patients"`
+	Pagination pagination.Meta   `json:"pagination"`
 }
