@@ -39,16 +39,16 @@ type PatientCreatedEvent struct {
 }
 
 type PatientCreatedData struct {
-	PatientID             string    `json:"patient_id"`
-	KeycloakUserID        string    `json:"keycloak_user_id"`
-	OrganizationID        string    `json:"organization_id"`
-	FirstName             string    `json:"first_name"`
-	LastName              string    `json:"last_name"`
-	Email                 string    `json:"email"`
-	PhoneNumber           string    `json:"phone_number,omitempty"`
-	DateOfBirth           string    `json:"date_of_birth,omitempty"`
-	IsActive              bool      `json:"is_active"`
-	CreatedAt             time.Time `json:"created_at"`
+	PatientID      string    `json:"patient_id"`
+	KeycloakUserID string    `json:"keycloak_user_id"`
+	OrganizationID string    `json:"organization_id"`
+	FirstName      string    `json:"first_name"`
+	LastName       string    `json:"last_name"`
+	Email          string    `json:"email"`
+	PhoneNumber    string    `json:"phone_number,omitempty"`
+	DateOfBirth    string    `json:"date_of_birth,omitempty"`
+	IsActive       bool      `json:"is_active"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // PatientDeletedEvent represents a patient deletion event
@@ -172,4 +172,3 @@ func NewBaseEvent(eventType string) BaseEvent {
 		ServiceName: "organization-service",
 	}
 }
-
