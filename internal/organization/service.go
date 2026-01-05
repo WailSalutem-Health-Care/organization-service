@@ -3,6 +3,8 @@ package organization
 import (
 	"context"
 	"fmt"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 )
 
 type Service struct {
@@ -32,6 +34,29 @@ func (s *Service) ListOrganizations(ctx context.Context) ([]OrganizationResponse
 		return nil, fmt.Errorf("failed to list organizations: %w", err)
 	}
 	return orgs, nil
+}
+
+// ListOrganizationsWithPagination retrieves organizations with pagination
+func (s *Service) ListOrganizationsWithPagination(ctx context.Context, params pagination.Params) (*PaginatedListResponse, error) {
+	// Validate pagination parameters
+	params.Validate()
+
+	// Get paginated data from repository
+	orgs, totalCount, err := s.repo.ListOrganizationsWithPagination(ctx, params.Limit, params.CalculateOffset())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list organizations: %w", err)
+	}
+
+	// Calculate pagination metadata
+	meta := params.CalculateMeta(totalCount)
+
+	response := &PaginatedListResponse{
+		Success:       true,
+		Organizations: orgs,
+		Pagination:    meta,
+	}
+
+	return response, nil
 }
 
 func (s *Service) GetOrganization(ctx context.Context, id string) (*OrganizationResponse, error) {

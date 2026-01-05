@@ -295,6 +295,84 @@ func (r *Repository) ListOrganizations(ctx context.Context) ([]OrganizationRespo
 	return orgs, nil
 }
 
+// ListOrganizationsWithPagination retrieves organizations with pagination support
+func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit, offset int) ([]OrganizationResponse, int, error) {
+	// First, get total count
+	var totalCount int
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM wailsalutem.organizations
+		WHERE deleted_at IS NULL
+	`
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count organizations: %w", err)
+	}
+
+	// Then get paginated results
+	query := `
+		SELECT id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
+		FROM wailsalutem.organizations
+		WHERE deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query organizations: %w", err)
+	}
+	defer rows.Close()
+
+	var orgs []OrganizationResponse
+	for rows.Next() {
+		var org OrganizationResponse
+		var settingsStr sql.NullString
+		var contactEmail sql.NullString
+		var contactPhone sql.NullString
+		var address sql.NullString
+
+		err := rows.Scan(
+			&org.ID,
+			&org.Name,
+			&org.SchemaName,
+			&contactEmail,
+			&contactPhone,
+			&address,
+			&org.Status,
+			&settingsStr,
+			&org.CreatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan organization: %w", err)
+		}
+
+		if contactEmail.Valid {
+			org.ContactEmail = contactEmail.String
+		}
+		if contactPhone.Valid {
+			org.ContactPhone = contactPhone.String
+		}
+		if address.Valid {
+			org.Address = address.String
+		}
+
+		if settingsStr.Valid && settingsStr.String != "" {
+			if err := json.Unmarshal([]byte(settingsStr.String), &org.Settings); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal settings: %w", err)
+			}
+		}
+
+		orgs = append(orgs, org)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating organizations: %w", err)
+	}
+
+	return orgs, totalCount, nil
+}
+
 func (r *Repository) GetOrganization(ctx context.Context, id string) (*OrganizationResponse, error) {
 	query := `
 		SELECT id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
