@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 	"github.com/gorilla/mux"
 )
 
@@ -63,7 +64,11 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	targetOrgID := r.Header.Get("X-Organization-ID")
 
-	users, err := h.service.ListUsers(principal, targetOrgID)
+	// Parse pagination parameters from query string
+	params := pagination.ParseParams(r)
+
+	// Get paginated users
+	response, err := h.service.ListUsersWithPagination(principal, targetOrgID, params)
 	if err != nil {
 		log.Printf("Failed to list users: %v", err)
 
@@ -78,10 +83,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"users": users,
-		"count": len(users),
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {

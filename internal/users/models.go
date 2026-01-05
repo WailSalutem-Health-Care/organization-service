@@ -2,6 +2,8 @@ package users
 
 import (
 	"time"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 )
 
 // User represents a user in the system
@@ -80,4 +82,10 @@ func (r *CreateUserRequest) Validate() error {
 	}
 
 	return nil
+}
+
+// PaginatedUserListResponse represents a paginated list of users
+type PaginatedUserListResponse struct {
+	Users      []User          `json:"users"`
+	Pagination pagination.Meta `json:"pagination"`
 }
