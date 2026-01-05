@@ -118,8 +118,9 @@ func (r *Repository) createOrganizationSchema(ctx context.Context, tx *sql.Tx, s
         CREATE TABLE IF NOT EXISTS %s.users (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             keycloak_user_id UUID NOT NULL,
-            full_name VARCHAR(255),
             email VARCHAR(255),
+            first_name VARCHAR(255),
+            last_name VARCHAR(255),
             phone_number VARCHAR(50),
             role VARCHAR(50),
             is_active BOOLEAN DEFAULT true,

@@ -168,13 +168,15 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["id"]
 
+	targetOrgID := r.Header.Get("X-Organization-ID")
+
 	var req ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	err := h.service.ResetPassword(userID, req, principal)
+	err := h.service.ResetPassword(userID, req, principal, targetOrgID)
 	if err != nil {
 		log.Printf("Failed to reset password: %v", err)
 

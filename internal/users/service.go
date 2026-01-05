@@ -453,30 +453,44 @@ func (s *Service) UpdateMyProfile(req UpdateUserRequest, principal *auth.Princip
 	return user, nil
 }
 
-func (s *Service) ResetPassword(userID string, req ResetPasswordRequest, principal *auth.Principal) error {
-	orgSchemaName := principal.OrgSchemaName
-	if orgSchemaName == "" {
-		if principal.OrgID == "" {
-			log.Printf("Principal has no orgId or orgSchemaName")
-			return ErrInvalidOrgSchema
-		}
+func (s *Service) ResetPassword(userID string, req ResetPasswordRequest, principal *auth.Principal, targetOrgID string) error {
+	var effectiveOrgID string
 
-		var err error
-		orgSchemaName, err = s.repo.GetSchemaNameByOrgID(principal.OrgID)
-		if err != nil {
-			log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+	if s.hasRole(principal, "SUPER_ADMIN") {
+		if targetOrgID != "" {
+			effectiveOrgID = targetOrgID
+			log.Printf("SUPER_ADMIN resetting password for user in org: %s", effectiveOrgID)
+		} else {
+			effectiveOrgID = principal.OrgID
+			if effectiveOrgID == "" {
+				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-ID header provided")
+				return ErrInvalidOrgSchema
+			}
+			log.Printf("SUPER_ADMIN resetting password for user in own org: %s", effectiveOrgID)
+		}
+	} else {
+		if targetOrgID != "" {
+			log.Printf("ORG_ADMIN attempted to reset password in different org")
+			return ErrForbidden
+		}
+		effectiveOrgID = principal.OrgID
+		if effectiveOrgID == "" {
+			log.Printf("No organization ID in token")
 			return ErrInvalidOrgSchema
 		}
-		log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, principal.OrgID)
+		log.Printf("ORG_ADMIN resetting password for user in own org: %s", effectiveOrgID)
 	}
+
+	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(effectiveOrgID)
+	if err != nil {
+		log.Printf("Failed to get schema name for orgId %s: %v", effectiveOrgID, err)
+		return ErrInvalidOrgSchema
+	}
+	log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, effectiveOrgID)
 
 	user, err := s.repo.GetByID(orgSchemaName, userID)
 	if err != nil {
 		return err
-	}
-
-	if user.OrgID != principal.OrgID {
-		return ErrForbidden
 	}
 
 	if req.TemporaryPassword != "" {

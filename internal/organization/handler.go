@@ -69,7 +69,7 @@ func (h *Handler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.FromContext(r.Context())
+	principal, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
@@ -78,8 +78,8 @@ func (h *Handler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination parameters from query string
 	params := pagination.ParseParams(r)
 
-	// Get paginated organizations
-	response, err := h.service.ListOrganizationsWithPagination(r.Context(), params)
+	// Get paginated organizations with authorization
+	response, err := h.service.ListOrganizationsWithPagination(r.Context(), principal, params)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "fetch_failed", err.Error())
 		return
@@ -90,7 +90,7 @@ func (h *Handler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.FromContext(r.Context())
+	principal, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
@@ -104,8 +104,12 @@ func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	org, err := h.service.GetOrganization(r.Context(), id)
+	org, err := h.service.GetOrganization(r.Context(), id, principal)
 	if err != nil {
+		if err.Error() == "forbidden" {
+			respondError(w, http.StatusForbidden, "forbidden", "You don't have permission to view this organization")
+			return
+		}
 		respondError(w, http.StatusNotFound, "not_found", err.Error())
 		return
 	}
@@ -119,7 +123,7 @@ func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.FromContext(r.Context())
+	principal, ok := auth.FromContext(r.Context())
 	if !ok {
 		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
 		return
@@ -139,8 +143,12 @@ func (h *Handler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	org, err := h.service.UpdateOrganization(r.Context(), id, req)
+	org, err := h.service.UpdateOrganization(r.Context(), id, req, principal)
 	if err != nil {
+		if err.Error() == "forbidden" {
+			respondError(w, http.StatusForbidden, "forbidden", "You don't have permission to update this organization")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "update_failed", err.Error())
 		return
 	}
