@@ -1,6 +1,10 @@
 package organization
 
-import "time"
+import (
+	"time"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
+)
 
 // CreateOrganizationRequest represents the request to create a new organization
 type CreateOrganizationRequest struct {
@@ -31,4 +35,11 @@ type OrganizationResponse struct {
 	Status       string                 `json:"status"`
 	Settings     map[string]interface{} `json:"settings,omitempty"`
 	CreatedAt    time.Time              `json:"created_at"`
+}
+
+// PaginatedListResponse represents a paginated list of organizations
+type PaginatedListResponse struct {
+	Success       bool                   `json:"success"`
+	Organizations []OrganizationResponse `json:"organizations"`
+	Pagination    pagination.Meta        `json:"pagination"`
 }

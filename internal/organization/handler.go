@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 	"github.com/gorilla/mux"
 )
 
@@ -74,18 +75,18 @@ func (h *Handler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orgs, err := h.service.ListOrganizations(r.Context(), principal)
+	// Parse pagination parameters from query string
+	params := pagination.ParseParams(r)
+
+	// Get paginated organizations with authorization
+	response, err := h.service.ListOrganizationsWithPagination(r.Context(), principal, params)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "fetch_failed", err.Error())
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ListResponse{
-		Success:       true,
-		Organizations: orgs,
-		Total:         len(orgs),
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {

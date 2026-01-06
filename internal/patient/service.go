@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 )
 
 type Service struct {
@@ -115,6 +116,29 @@ func (s *Service) ListPatients(ctx context.Context, schemaName string) ([]Patien
 		return nil, fmt.Errorf("failed to list patients: %w", err)
 	}
 	return patients, nil
+}
+
+// ListPatientsWithPagination retrieves patients with pagination
+func (s *Service) ListPatientsWithPagination(ctx context.Context, schemaName string, params pagination.Params) (*PaginatedPatientListResponse, error) {
+	// Validate pagination parameters
+	params.Validate()
+
+	// Get paginated data from repository
+	patients, totalCount, err := s.repo.ListPatientsWithPagination(ctx, schemaName, params.Limit, params.CalculateOffset())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list patients: %w", err)
+	}
+
+	// Calculate pagination metadata
+	meta := params.CalculateMeta(totalCount)
+
+	response := &PaginatedPatientListResponse{
+		Success:    true,
+		Patients:   patients,
+		Pagination: meta,
+	}
+
+	return response, nil
 }
 
 func (s *Service) GetPatient(ctx context.Context, schemaName string, id string) (*PatientResponse, error) {

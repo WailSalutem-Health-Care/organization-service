@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 )
 
 type Service struct {
@@ -236,6 +237,62 @@ func (s *Service) ListUsers(principal *auth.Principal, targetOrgID string) ([]Us
 	}
 
 	return users, nil
+}
+
+// ListUsersWithPagination retrieves users with pagination
+func (s *Service) ListUsersWithPagination(principal *auth.Principal, targetOrgID string, params pagination.Params) (*PaginatedUserListResponse, error) {
+	var effectiveOrgID string
+
+	if s.hasRole(principal, "SUPER_ADMIN") {
+		if targetOrgID != "" {
+			effectiveOrgID = targetOrgID
+			log.Printf("SUPER_ADMIN listing users from org: %s", effectiveOrgID)
+		} else {
+			effectiveOrgID = principal.OrgID
+			if effectiveOrgID == "" {
+				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-ID header provided")
+				return nil, ErrInvalidOrgSchema
+			}
+			log.Printf("SUPER_ADMIN listing users from own org: %s", effectiveOrgID)
+		}
+	} else {
+		if targetOrgID != "" {
+			log.Printf("ORG_ADMIN attempted to list users from different org")
+			return nil, ErrForbidden
+		}
+		effectiveOrgID = principal.OrgID
+		if effectiveOrgID == "" {
+			log.Printf("No organization ID in token")
+			return nil, ErrInvalidOrgSchema
+		}
+		log.Printf("ORG_ADMIN listing users from own org: %s", effectiveOrgID)
+	}
+
+	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(effectiveOrgID)
+	if err != nil {
+		log.Printf("Failed to get schema name for orgId %s: %v", effectiveOrgID, err)
+		return nil, ErrInvalidOrgSchema
+	}
+	log.Printf("Looked up schema name '%s' for orgId '%s'", orgSchemaName, effectiveOrgID)
+
+	// Validate pagination parameters
+	params.Validate()
+
+	// Get paginated data from repository
+	users, totalCount, err := s.repo.ListWithPagination(orgSchemaName, params.Limit, params.CalculateOffset())
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate pagination metadata
+	meta := params.CalculateMeta(totalCount)
+
+	response := &PaginatedUserListResponse{
+		Users:      users,
+		Pagination: meta,
+	}
+
+	return response, nil
 }
 
 func (s *Service) UpdateUser(userID string, req UpdateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error) {

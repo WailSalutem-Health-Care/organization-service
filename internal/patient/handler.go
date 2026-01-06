@@ -7,6 +7,7 @@ import (
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 	"github.com/gorilla/mux"
 )
 
@@ -161,18 +162,18 @@ func (h *Handler) ListPatients(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	patients, err := h.service.ListPatients(r.Context(), schemaName)
+	// Parse pagination parameters from query string
+	params := pagination.ParseParams(r)
+
+	// Get paginated patients
+	response, err := h.service.ListPatientsWithPagination(r.Context(), schemaName, params)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "fetch_failed", err.Error())
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(PatientListResponse{
-		Success:  true,
-		Patients: patients,
-		Total:    len(patients),
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) GetPatient(w http.ResponseWriter, r *http.Request) {
