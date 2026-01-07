@@ -86,6 +86,37 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *Handler) ListActiveUsers(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.FromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	targetOrgID := r.Header.Get("X-Organization-ID")
+
+	// Parse pagination parameters from query string
+	params := pagination.ParseParams(r)
+
+	// Get paginated active users
+	response, err := h.service.ListActiveUsersWithPagination(principal, targetOrgID, params)
+	if err != nil {
+		log.Printf("Failed to list active users: %v", err)
+
+		if err == ErrInvalidOrgSchema {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else if err == ErrForbidden {
+			http.Error(w, err.Error(), http.StatusForbidden)
+		} else {
+			http.Error(w, "failed to list active users", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.FromContext(r.Context())
 	if !ok {

@@ -141,6 +141,29 @@ func (s *Service) ListPatientsWithPagination(ctx context.Context, schemaName str
 	return response, nil
 }
 
+// ListActivePatientsWithPagination retrieves active patients (not soft deleted and is_active = true) with pagination
+func (s *Service) ListActivePatientsWithPagination(ctx context.Context, schemaName string, params pagination.Params) (*PaginatedPatientListResponse, error) {
+	// Validate pagination parameters
+	params.Validate()
+
+	// Get paginated data from repository
+	patients, totalCount, err := s.repo.ListActivePatientsWithPagination(ctx, schemaName, params.Limit, params.CalculateOffset())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list active patients: %w", err)
+	}
+
+	// Calculate pagination metadata
+	meta := params.CalculateMeta(totalCount)
+
+	response := &PaginatedPatientListResponse{
+		Success:    true,
+		Patients:   patients,
+		Pagination: meta,
+	}
+
+	return response, nil
+}
+
 func (s *Service) GetPatient(ctx context.Context, schemaName string, id string) (*PatientResponse, error) {
 	patient, err := s.repo.GetPatient(ctx, schemaName, id)
 	if err != nil {

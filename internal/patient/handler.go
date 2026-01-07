@@ -176,6 +176,68 @@ func (h *Handler) ListPatients(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *Handler) ListActivePatients(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.FromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthenticated", "User not authenticated")
+		return
+	}
+
+	var orgID string
+	var schemaName string
+	var err error
+
+	// Check if user is SUPER_ADMIN
+	isSuperAdmin := false
+	for _, role := range principal.Roles {
+		if role == "SUPER_ADMIN" {
+			isSuperAdmin = true
+			break
+		}
+	}
+
+	if isSuperAdmin {
+		// SUPER_ADMIN must provide X-Organization-ID header
+		orgID = r.Header.Get("X-Organization-ID")
+		if orgID == "" {
+			respondError(w, http.StatusBadRequest, "missing_org", "X-Organization-ID header is required for SUPER_ADMIN")
+			return
+		}
+
+		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
+			return
+		}
+		if schemaName == "" {
+			respondError(w, http.StatusNotFound, "org_not_found", "Organization schema not found")
+			return
+		}
+	} else {
+		// ORG_ADMIN: get org ID and schema from token
+		orgID = principal.OrgID
+		schemaName = principal.OrgSchemaName
+
+		if orgID == "" || schemaName == "" {
+			respondError(w, http.StatusBadRequest, "missing_org_info", "Organization information not found in token")
+			return
+		}
+	}
+
+	// Parse pagination parameters from query string
+	params := pagination.ParseParams(r)
+
+	// Get paginated active patients
+	response, err := h.service.ListActivePatientsWithPagination(r.Context(), schemaName, params)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "fetch_failed", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *Handler) GetPatient(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.FromContext(r.Context())
 	if !ok {
