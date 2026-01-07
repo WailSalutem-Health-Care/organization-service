@@ -299,7 +299,7 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int) ([
 		SELECT COUNT(*) 
 		FROM %s.users
 	`, schemaName)
-	
+
 	err := r.db.QueryRow(countQuery).Scan(&totalCount)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count users: %w", err)
@@ -316,6 +316,91 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int) ([
 	rows, err := r.db.Query(query, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		var updatedAt sql.NullTime
+		var phoneNumber sql.NullString
+		var email sql.NullString
+		var firstName sql.NullString
+		var lastName sql.NullString
+
+		err := rows.Scan(
+			&user.ID,
+			&user.KeycloakUserID,
+			&email,
+			&firstName,
+			&lastName,
+			&phoneNumber,
+			&user.Role,
+			&user.CreatedAt,
+			&updatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
+		}
+
+		if email.Valid {
+			user.Email = email.String
+		}
+		if firstName.Valid {
+			user.FirstName = firstName.String
+		}
+		if lastName.Valid {
+			user.LastName = lastName.String
+		}
+		if phoneNumber.Valid {
+			user.PhoneNumber = phoneNumber.String
+		}
+		if updatedAt.Valid {
+			user.UpdatedAt = updatedAt.Time
+		}
+
+		user.OrgSchemaName = schemaName
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating users: %w", err)
+	}
+
+	return users, totalCount, nil
+}
+
+// ListActiveUsersWithPagination retrieves active users (not soft deleted) with pagination support
+func (r *Repository) ListActiveUsersWithPagination(schemaName string, limit, offset int) ([]User, int, error) {
+	if err := r.ValidateOrgSchema(schemaName); err != nil {
+		return nil, 0, err
+	}
+
+	// First, get total count of active users
+	var totalCount int
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM %s.users
+		WHERE deleted_at IS NULL
+	`, schemaName)
+
+	err := r.db.QueryRow(countQuery).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count active users: %w", err)
+	}
+
+	// Then get paginated results
+	query := fmt.Sprintf(`
+		SELECT id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at, updated_at
+		FROM %s.users
+		WHERE deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`, schemaName)
+
+	rows, err := r.db.Query(query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list active users: %w", err)
 	}
 	defer rows.Close()
 
