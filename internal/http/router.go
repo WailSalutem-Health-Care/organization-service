@@ -100,6 +100,14 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string,
 		),
 	).Methods("GET")
 
+	r.Handle("/organization/patients/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:view", perms)(
+				http.HandlerFunc(patientHandler.ListActivePatients),
+			),
+		),
+	).Methods("GET")
+
 	r.Handle("/organization/patients/{id}",
 		auth.Middleware(verifier)(
 			auth.RequirePermission("patient:view", perms)(
@@ -136,6 +144,14 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string,
 		auth.Middleware(verifier)(
 			auth.RequirePermission("user:view", perms)(
 				http.HandlerFunc(userHandler.ListUsers),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListActiveUsers),
 			),
 		),
 	).Methods("GET")
