@@ -26,8 +26,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    environment:
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   rabbitmq_data:

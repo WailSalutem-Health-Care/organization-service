@@ -1,0 +1,2 @@
+-- Intentionally empty
+-- Tenant tables are created via create_tenant_schema()
