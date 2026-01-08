@@ -252,7 +252,7 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 		FROM %s.patients
 		WHERE deleted_at IS NULL
 	`, pq.QuoteIdentifier(schemaName))
-	
+
 	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count patients: %w", err)
@@ -272,6 +272,115 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 	rows, err := r.db.QueryContext(ctx, query, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query patients: %w", err)
+	}
+	defer rows.Close()
+
+	var patients []PatientResponse
+	for rows.Next() {
+		var patient PatientResponse
+		var dob sql.NullString
+		var email sql.NullString
+		var phoneNumber sql.NullString
+		var address sql.NullString
+		var emergencyContactName sql.NullString
+		var emergencyContactPhone sql.NullString
+		var medicalNotes sql.NullString
+		var careplanType sql.NullString
+		var careplanFrequency sql.NullString
+		var updatedAt sql.NullTime
+
+		err := rows.Scan(
+			&patient.ID,
+			&patient.KeycloakUserID,
+			&patient.FirstName,
+			&patient.LastName,
+			&email,
+			&phoneNumber,
+			&dob,
+			&address,
+			&emergencyContactName,
+			&emergencyContactPhone,
+			&medicalNotes,
+			&careplanType,
+			&careplanFrequency,
+			&patient.IsActive,
+			&patient.CreatedAt,
+			&updatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan patient: %w", err)
+		}
+
+		if dob.Valid {
+			patient.DateOfBirth = &dob.String
+		}
+		if email.Valid {
+			patient.Email = email.String
+		}
+		if phoneNumber.Valid {
+			patient.PhoneNumber = phoneNumber.String
+		}
+		if address.Valid {
+			patient.Address = address.String
+		}
+		if emergencyContactName.Valid {
+			patient.EmergencyContactName = emergencyContactName.String
+		}
+		if emergencyContactPhone.Valid {
+			patient.EmergencyContactPhone = emergencyContactPhone.String
+		}
+		if medicalNotes.Valid {
+			patient.MedicalNotes = medicalNotes.String
+		}
+		if careplanType.Valid {
+			patient.CareplanType = careplanType.String
+		}
+		if careplanFrequency.Valid {
+			patient.CareplanFrequency = careplanFrequency.String
+		}
+		if updatedAt.Valid {
+			patient.UpdatedAt = &updatedAt.Time
+		}
+
+		patients = append(patients, patient)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating patients: %w", err)
+	}
+
+	return patients, totalCount, nil
+}
+
+// ListActivePatientsWithPagination retrieves active patients (not soft deleted and is_active = true) with pagination support
+func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schemaName string, limit, offset int) ([]PatientResponse, int, error) {
+	// First, get total count of active patients
+	var totalCount int
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM %s.patients
+		WHERE deleted_at IS NULL AND is_active = true
+	`, pq.QuoteIdentifier(schemaName))
+
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count active patients: %w", err)
+	}
+
+	// Then get paginated results
+	query := fmt.Sprintf(`
+		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
+			   careplan_frequency, is_active, created_at, updated_at
+		FROM %s.patients
+		WHERE deleted_at IS NULL AND is_active = true
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`, pq.QuoteIdentifier(schemaName))
+
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query active patients: %w", err)
 	}
 	defer rows.Close()
 
