@@ -14,8 +14,10 @@ const (
 
 // Params represents pagination query parameters
 type Params struct {
-	Page  int `json:"page"`  // Current page number (1-based)
-	Limit int `json:"limit"` // Number of items per page
+	Page   int    `json:"page"`   // Current page number (1-based)
+	Limit  int    `json:"limit"`  // Number of items per page
+	Search string `json:"search"` // Search query string
+	Status string `json:"status"` // Status filter (e.g., "active", "inactive", "all")
 }
 
 // Meta contains pagination metadata for responses
@@ -51,9 +53,17 @@ func ParseParams(r *http.Request) Params {
 		}
 	}
 
+	// Parse search parameter
+	search := r.URL.Query().Get("search")
+
+	// Parse status parameter
+	status := r.URL.Query().Get("status")
+
 	return Params{
-		Page:  page,
-		Limit: limit,
+		Page:   page,
+		Limit:  limit,
+		Search: search,
+		Status: status,
 	}
 }
 

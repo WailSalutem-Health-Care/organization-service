@@ -50,6 +50,7 @@ type UpdatePatientRequest struct {
 // PatientResponse represents the patient data returned to clients
 type PatientResponse struct {
 	ID                    string     `json:"id"`
+	PatientID             string     `json:"patient_id,omitempty"`
 	KeycloakUserID        string     `json:"keycloak_user_id"`
 	FirstName             string     `json:"first_name"`
 	LastName              string     `json:"last_name"`
