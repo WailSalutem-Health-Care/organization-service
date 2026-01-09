@@ -14,10 +14,10 @@ spec:
         app: organization-service
     spec:
       containers:
-          - name: organization-service
+        - name: organization-service
           image: organization-service:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 8080
           envFrom:
             - configMapRef:
                 name: wailsalutem-backend-config
