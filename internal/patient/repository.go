@@ -31,11 +31,11 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s.patients 
-		(id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		(id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 		 emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, careplan_frequency, 
 		 is_active, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14)
-		RETURNING id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, true, $15)
+		RETURNING id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 				  emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
 				  careplan_frequency, is_active, created_at
 	`, pq.QuoteIdentifier(schemaName))
@@ -50,9 +50,11 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID
 	var medicalNotes sql.NullString
 	var careplanType sql.NullString
 	var careplanFrequency sql.NullString
+	var patientIDStr sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query,
 		patientID,
+		nil, // patient_id will be auto-generated or set to NULL for now
 		keycloakUserID,
 		req.FirstName,
 		req.LastName,
@@ -68,6 +70,7 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID
 		createdAt,
 	).Scan(
 		&patient.ID,
+		&patientIDStr,
 		&patient.KeycloakUserID,
 		&patient.FirstName,
 		&patient.LastName,
@@ -88,6 +91,9 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID
 		return nil, fmt.Errorf("failed to insert patient: %w", err)
 	}
 
+	if patientIDStr.Valid {
+		patient.PatientID = patientIDStr.String
+	}
 	if dob.Valid {
 		patient.DateOfBirth = &dob.String
 	}
@@ -152,7 +158,7 @@ func getStringValue(ptr *string) string {
 
 func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]PatientResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		SELECT id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
 			   careplan_frequency, is_active, created_at, updated_at
 		FROM %s.patients
@@ -179,9 +185,11 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 		var careplanType sql.NullString
 		var careplanFrequency sql.NullString
 		var updatedAt sql.NullTime
+		var patientIDStr sql.NullString
 
 		err := rows.Scan(
 			&patient.ID,
+			&patientIDStr,
 			&patient.KeycloakUserID,
 			&patient.FirstName,
 			&patient.LastName,
@@ -202,6 +210,9 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 			return nil, fmt.Errorf("failed to scan patient: %w", err)
 		}
 
+		if patientIDStr.Valid {
+			patient.PatientID = patientIDStr.String
+		}
 		if dob.Valid {
 			patient.DateOfBirth = &dob.String
 		}
@@ -244,32 +255,48 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 }
 
 // ListPatientsWithPagination retrieves patients with pagination support
-func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName string, limit, offset int) ([]PatientResponse, int, error) {
+func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error) {
+	// Build WHERE clause for search
+	whereClause := "WHERE deleted_at IS NULL"
+	args := []interface{}{limit, offset}
+	
+	if search != "" {
+		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		args = append(args, "%"+search+"%")
+	}
+
 	// First, get total count
 	var totalCount int
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM %s.patients
-		WHERE deleted_at IS NULL
-	`, pq.QuoteIdentifier(schemaName))
+		%s
+	`, pq.QuoteIdentifier(schemaName), whereClause)
 
-	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count patients: %w", err)
+	if search != "" {
+		err := r.db.QueryRowContext(ctx, countQuery, "%"+search+"%").Scan(&totalCount)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to count patients: %w", err)
+		}
+	} else {
+		err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to count patients: %w", err)
+		}
 	}
 
 	// Then get paginated results
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		SELECT id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
 			   careplan_frequency, is_active, created_at, updated_at
 		FROM %s.patients
-		WHERE deleted_at IS NULL
+		%s
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
-	`, pq.QuoteIdentifier(schemaName))
+	`, pq.QuoteIdentifier(schemaName), whereClause)
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query patients: %w", err)
 	}
@@ -353,32 +380,48 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 }
 
 // ListActivePatientsWithPagination retrieves active patients (not soft deleted and is_active = true) with pagination support
-func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schemaName string, limit, offset int) ([]PatientResponse, int, error) {
+func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error) {
+	// Build WHERE clause for search
+	whereClause := "WHERE deleted_at IS NULL AND is_active = true"
+	args := []interface{}{limit, offset}
+	
+	if search != "" {
+		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		args = append(args, "%"+search+"%")
+	}
+
 	// First, get total count of active patients
 	var totalCount int
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM %s.patients
-		WHERE deleted_at IS NULL AND is_active = true
-	`, pq.QuoteIdentifier(schemaName))
+		%s
+	`, pq.QuoteIdentifier(schemaName), whereClause)
 
-	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count active patients: %w", err)
+	if search != "" {
+		err := r.db.QueryRowContext(ctx, countQuery, "%"+search+"%").Scan(&totalCount)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to count active patients: %w", err)
+		}
+	} else {
+		err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to count active patients: %w", err)
+		}
 	}
 
 	// Then get paginated results
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		SELECT id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
 			   careplan_frequency, is_active, created_at, updated_at
 		FROM %s.patients
-		WHERE deleted_at IS NULL AND is_active = true
+		%s
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
-	`, pq.QuoteIdentifier(schemaName))
+	`, pq.QuoteIdentifier(schemaName), whereClause)
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query active patients: %w", err)
 	}
@@ -463,7 +506,7 @@ func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schem
 
 func (r *Repository) GetPatient(ctx context.Context, schemaName string, id string) (*PatientResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		SELECT id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
 			   careplan_frequency, is_active, created_at, updated_at
 		FROM %s.patients
@@ -481,9 +524,11 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 	var careplanType sql.NullString
 	var careplanFrequency sql.NullString
 	var updatedAt sql.NullTime
+	var patientIDStr sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&patient.ID,
+		&patientIDStr,
 		&patient.KeycloakUserID,
 		&patient.FirstName,
 		&patient.LastName,
@@ -508,6 +553,9 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 		return nil, fmt.Errorf("failed to query patient: %w", err)
 	}
 
+	if patientIDStr.Valid {
+		patient.PatientID = patientIDStr.String
+	}
 	if dob.Valid {
 		patient.DateOfBirth = &dob.String
 	}

@@ -78,8 +78,8 @@ func (s *Service) ListOrganizationsWithPagination(ctx context.Context, principal
 
 	// SUPER_ADMIN can see all organizations with pagination
 	if isSuperAdmin {
-		// Get paginated data from repository
-		orgs, totalCount, err := s.repo.ListOrganizationsWithPagination(ctx, params.Limit, params.CalculateOffset())
+		// Get paginated data from repository with search and status filters
+		orgs, totalCount, err := s.repo.ListOrganizationsWithPagination(ctx, params.Limit, params.CalculateOffset(), params.Search, params.Status)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list organizations: %w", err)
 		}

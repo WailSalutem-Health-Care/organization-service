@@ -10,11 +10,13 @@ import (
 type User struct {
 	ID             string    `json:"id"`
 	KeycloakUserID string    `json:"keycloakUserId"`
+	EmployeeID     string    `json:"employeeId,omitempty"`
 	Email          string    `json:"email"`
 	FirstName      string    `json:"firstName"`
 	LastName       string    `json:"lastName"`
 	PhoneNumber    string    `json:"phoneNumber,omitempty"`
 	Role           string    `json:"role"`
+	IsActive       bool      `json:"isActive"`
 	OrgID          string    `json:"orgId"`
 	OrgSchemaName  string    `json:"orgSchemaName"`
 	CreatedAt      time.Time `json:"createdAt"`

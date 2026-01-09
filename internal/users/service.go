@@ -279,7 +279,7 @@ func (s *Service) ListUsersWithPagination(principal *auth.Principal, targetOrgID
 	params.Validate()
 
 	// Get paginated data from repository
-	users, totalCount, err := s.repo.ListWithPagination(orgSchemaName, params.Limit, params.CalculateOffset())
+	users, totalCount, err := s.repo.ListWithPagination(orgSchemaName, params.Limit, params.CalculateOffset(), params.Search)
 	if err != nil {
 		return nil, err
 	}
@@ -295,25 +295,25 @@ func (s *Service) ListUsersWithPagination(principal *auth.Principal, targetOrgID
 	return response, nil
 }
 
-// ListActiveUsersWithPagination retrieves active users (not soft deleted) with pagination
-func (s *Service) ListActiveUsersWithPagination(principal *auth.Principal, targetOrgID string, params pagination.Params) (*PaginatedUserListResponse, error) {
+// ListActiveUsersByRoleWithPagination retrieves active users (not soft deleted) by role with pagination
+func (s *Service) ListActiveUsersByRoleWithPagination(principal *auth.Principal, targetOrgID string, role string, params pagination.Params) (*PaginatedUserListResponse, error) {
 	var effectiveOrgID string
 
 	if s.hasRole(principal, "SUPER_ADMIN") {
 		if targetOrgID != "" {
 			effectiveOrgID = targetOrgID
-			log.Printf("SUPER_ADMIN listing active users from org: %s", effectiveOrgID)
+			log.Printf("SUPER_ADMIN listing active %s users from org: %s", role, effectiveOrgID)
 		} else {
 			effectiveOrgID = principal.OrgID
 			if effectiveOrgID == "" {
 				log.Printf("SUPER_ADMIN token has no orgId and no X-Organization-ID header provided")
 				return nil, ErrInvalidOrgSchema
 			}
-			log.Printf("SUPER_ADMIN listing active users from own org: %s", effectiveOrgID)
+			log.Printf("SUPER_ADMIN listing active %s users from own org: %s", role, effectiveOrgID)
 		}
 	} else {
 		if targetOrgID != "" {
-			log.Printf("ORG_ADMIN attempted to list active users from different org")
+			log.Printf("ORG_ADMIN attempted to list active %s users from different org", role)
 			return nil, ErrForbidden
 		}
 		effectiveOrgID = principal.OrgID
@@ -321,7 +321,7 @@ func (s *Service) ListActiveUsersWithPagination(principal *auth.Principal, targe
 			log.Printf("No organization ID in token")
 			return nil, ErrInvalidOrgSchema
 		}
-		log.Printf("ORG_ADMIN listing active users from own org: %s", effectiveOrgID)
+		log.Printf("ORG_ADMIN listing active %s users from own org: %s", role, effectiveOrgID)
 	}
 
 	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(effectiveOrgID)
@@ -335,7 +335,7 @@ func (s *Service) ListActiveUsersWithPagination(principal *auth.Principal, targe
 	params.Validate()
 
 	// Get paginated data from repository
-	users, totalCount, err := s.repo.ListActiveUsersWithPagination(orgSchemaName, params.Limit, params.CalculateOffset())
+	users, totalCount, err := s.repo.ListActiveUsersByRoleWithPagination(orgSchemaName, role, params.Limit, params.CalculateOffset(), params.Search)
 	if err != nil {
 		return nil, err
 	}
