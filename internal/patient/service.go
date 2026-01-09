@@ -124,7 +124,7 @@ func (s *Service) ListPatientsWithPagination(ctx context.Context, schemaName str
 	params.Validate()
 
 	// Get paginated data from repository
-	patients, totalCount, err := s.repo.ListPatientsWithPagination(ctx, schemaName, params.Limit, params.CalculateOffset())
+	patients, totalCount, err := s.repo.ListPatientsWithPagination(ctx, schemaName, params.Limit, params.CalculateOffset(), params.Search)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list patients: %w", err)
 	}
@@ -147,7 +147,7 @@ func (s *Service) ListActivePatientsWithPagination(ctx context.Context, schemaNa
 	params.Validate()
 
 	// Get paginated data from repository
-	patients, totalCount, err := s.repo.ListActivePatientsWithPagination(ctx, schemaName, params.Limit, params.CalculateOffset())
+	patients, totalCount, err := s.repo.ListActivePatientsWithPagination(ctx, schemaName, params.Limit, params.CalculateOffset(), params.Search)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list active patients: %w", err)
 	}
