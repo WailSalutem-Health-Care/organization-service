@@ -297,29 +297,49 @@ func (r *Repository) ListOrganizations(ctx context.Context) ([]OrganizationRespo
 }
 
 // ListOrganizationsWithPagination retrieves organizations with pagination support
-func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit, offset int) ([]OrganizationResponse, int, error) {
+func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit, offset int, search string, status string) ([]OrganizationResponse, int, error) {
+	// Build WHERE clause
+	whereClause := "WHERE deleted_at IS NULL"
+	args := []interface{}{limit, offset}
+	countArgs := []interface{}{}
+	argIndex := 3
+
+	if search != "" {
+		whereClause += fmt.Sprintf(` AND (name ILIKE $%d OR contact_email ILIKE $%d)`, argIndex, argIndex)
+		args = append(args, "%"+search+"%")
+		countArgs = append(countArgs, "%"+search+"%")
+		argIndex++
+	}
+
+	if status != "" && status != "all" {
+		whereClause += fmt.Sprintf(` AND status = $%d`, argIndex)
+		args = append(args, status)
+		countArgs = append(countArgs, status)
+	}
+
 	// First, get total count
 	var totalCount int
-	countQuery := `
+	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM wailsalutem.organizations
-		WHERE deleted_at IS NULL
-	`
-	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+		%s
+	`, whereClause)
+
+	err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalCount)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count organizations: %w", err)
 	}
 
 	// Then get paginated results
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
 		FROM wailsalutem.organizations
-		WHERE deleted_at IS NULL
+		%s
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
-	`
+	`, whereClause)
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query organizations: %w", err)
 	}
