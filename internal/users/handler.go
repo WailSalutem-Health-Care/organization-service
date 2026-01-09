@@ -86,7 +86,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (h *Handler) ListActiveUsers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListActiveCaregivers(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.FromContext(r.Context())
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -94,21 +94,102 @@ func (h *Handler) ListActiveUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	targetOrgID := r.Header.Get("X-Organization-ID")
-
-	// Parse pagination parameters from query string
 	params := pagination.ParseParams(r)
 
-	// Get paginated active users
-	response, err := h.service.ListActiveUsersWithPagination(principal, targetOrgID, params)
+	response, err := h.service.ListActiveUsersByRoleWithPagination(principal, targetOrgID, "CAREGIVER", params)
 	if err != nil {
-		log.Printf("Failed to list active users: %v", err)
+		log.Printf("Failed to list active caregivers: %v", err)
 
 		if err == ErrInvalidOrgSchema {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else if err == ErrForbidden {
 			http.Error(w, err.Error(), http.StatusForbidden)
 		} else {
-			http.Error(w, "failed to list active users", http.StatusInternalServerError)
+			http.Error(w, "failed to list active caregivers", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) ListActiveMunicipality(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.FromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	targetOrgID := r.Header.Get("X-Organization-ID")
+	params := pagination.ParseParams(r)
+
+	response, err := h.service.ListActiveUsersByRoleWithPagination(principal, targetOrgID, "MUNICIPALITY", params)
+	if err != nil {
+		log.Printf("Failed to list active municipality users: %v", err)
+
+		if err == ErrInvalidOrgSchema {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else if err == ErrForbidden {
+			http.Error(w, err.Error(), http.StatusForbidden)
+		} else {
+			http.Error(w, "failed to list active municipality users", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) ListActiveInsurers(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.FromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	targetOrgID := r.Header.Get("X-Organization-ID")
+	params := pagination.ParseParams(r)
+
+	response, err := h.service.ListActiveUsersByRoleWithPagination(principal, targetOrgID, "INSURER", params)
+	if err != nil {
+		log.Printf("Failed to list active insurers: %v", err)
+
+		if err == ErrInvalidOrgSchema {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else if err == ErrForbidden {
+			http.Error(w, err.Error(), http.StatusForbidden)
+		} else {
+			http.Error(w, "failed to list active insurers", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) ListActiveOrgAdmins(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.FromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	targetOrgID := r.Header.Get("X-Organization-ID")
+	params := pagination.ParseParams(r)
+
+	response, err := h.service.ListActiveUsersByRoleWithPagination(principal, targetOrgID, "ORG_ADMIN", params)
+	if err != nil {
+		log.Printf("Failed to list active org admins: %v", err)
+
+		if err == ErrInvalidOrgSchema {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else if err == ErrForbidden {
+			http.Error(w, err.Error(), http.StatusForbidden)
+		} else {
+			http.Error(w, "failed to list active org admins", http.StatusInternalServerError)
 		}
 		return
 	}

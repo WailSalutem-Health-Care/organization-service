@@ -55,20 +55,23 @@ func (r *Repository) Create(user *User) error {
 
 	user.ID = uuid.New().String()
 	user.CreatedAt = time.Now()
+	user.IsActive = true // Default to active when creating
 
 	query := fmt.Sprintf(`
-		INSERT INTO %s.users (id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO %s.users (id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, user.OrgSchemaName)
 
 	_, err := r.db.Exec(query,
 		user.ID,
 		user.KeycloakUserID,
+		user.EmployeeID,
 		user.Email,
 		user.FirstName,
 		user.LastName,
 		user.PhoneNumber,
 		user.Role,
+		user.IsActive,
 		user.CreatedAt,
 	)
 
@@ -109,7 +112,7 @@ func (r *Repository) GetByID(schemaName, userID string) (*User, error) {
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at, updated_at
+		SELECT id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at, updated_at
 		FROM %s.users
 		WHERE id = $1
 	`, schemaName)
@@ -120,15 +123,18 @@ func (r *Repository) GetByID(schemaName, userID string) (*User, error) {
 	var email sql.NullString
 	var firstName sql.NullString
 	var lastName sql.NullString
+	var employeeID sql.NullString
 
 	err := r.db.QueryRow(query, userID).Scan(
 		&user.ID,
 		&user.KeycloakUserID,
+		&employeeID,
 		&email,
 		&firstName,
 		&lastName,
 		&phoneNumber,
 		&user.Role,
+		&user.IsActive,
 		&user.CreatedAt,
 		&updatedAt,
 	)
@@ -140,6 +146,9 @@ func (r *Repository) GetByID(schemaName, userID string) (*User, error) {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
+	if employeeID.Valid {
+		user.EmployeeID = employeeID.String
+	}
 	if email.Valid {
 		user.Email = email.String
 	}
@@ -167,7 +176,7 @@ func (r *Repository) GetByKeycloakID(schemaName, keycloakUserID string) (*User, 
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at, updated_at
+		SELECT id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at, updated_at
 		FROM %s.users
 		WHERE keycloak_user_id = $1
 	`, schemaName)
@@ -178,15 +187,18 @@ func (r *Repository) GetByKeycloakID(schemaName, keycloakUserID string) (*User, 
 	var email sql.NullString
 	var firstName sql.NullString
 	var lastName sql.NullString
+	var employeeID sql.NullString
 
 	err := r.db.QueryRow(query, keycloakUserID).Scan(
 		&user.ID,
 		&user.KeycloakUserID,
+		&employeeID,
 		&email,
 		&firstName,
 		&lastName,
 		&phoneNumber,
 		&user.Role,
+		&user.IsActive,
 		&user.CreatedAt,
 		&updatedAt,
 	)
@@ -198,6 +210,9 @@ func (r *Repository) GetByKeycloakID(schemaName, keycloakUserID string) (*User, 
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
+	if employeeID.Valid {
+		user.EmployeeID = employeeID.String
+	}
 	if email.Valid {
 		user.Email = email.String
 	}
@@ -225,7 +240,7 @@ func (r *Repository) List(schemaName string) ([]User, error) {
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at, updated_at
+		SELECT id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at, updated_at
 		FROM %s.users
 		ORDER BY created_at DESC
 	`, schemaName)
@@ -244,15 +259,18 @@ func (r *Repository) List(schemaName string) ([]User, error) {
 		var email sql.NullString
 		var firstName sql.NullString
 		var lastName sql.NullString
+		var employeeID sql.NullString
 
 		err := rows.Scan(
 			&user.ID,
 			&user.KeycloakUserID,
+			&employeeID,
 			&email,
 			&firstName,
 			&lastName,
 			&phoneNumber,
 			&user.Role,
+			&user.IsActive,
 			&user.CreatedAt,
 			&updatedAt,
 		)
@@ -260,6 +278,9 @@ func (r *Repository) List(schemaName string) ([]User, error) {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 
+		if employeeID.Valid {
+			user.EmployeeID = employeeID.String
+		}
 		if email.Valid {
 			user.Email = email.String
 		}
@@ -288,9 +309,17 @@ func (r *Repository) List(schemaName string) ([]User, error) {
 }
 
 // ListWithPagination retrieves users with pagination support
-func (r *Repository) ListWithPagination(schemaName string, limit, offset int) ([]User, int, error) {
+func (r *Repository) ListWithPagination(schemaName string, limit, offset int, search string) ([]User, int, error) {
 	if err := r.ValidateOrgSchema(schemaName); err != nil {
 		return nil, 0, err
+	}
+
+	// Build WHERE clause for search
+	whereClause := ""
+	args := []interface{}{limit, offset}
+	if search != "" {
+		whereClause = `WHERE (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		args = append(args, "%"+search+"%")
 	}
 
 	// First, get total count
@@ -298,22 +327,31 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int) ([
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM %s.users
-	`, schemaName)
+		%s
+	`, schemaName, whereClause)
 
-	err := r.db.QueryRow(countQuery).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count users: %w", err)
+	if search != "" {
+		err := r.db.QueryRow(countQuery, "%"+search+"%").Scan(&totalCount)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to count users: %w", err)
+		}
+	} else {
+		err := r.db.QueryRow(countQuery).Scan(&totalCount)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to count users: %w", err)
+		}
 	}
 
 	// Then get paginated results
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at, updated_at
+		SELECT id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at, updated_at
 		FROM %s.users
+		%s
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
-	`, schemaName)
+	`, schemaName, whereClause)
 
-	rows, err := r.db.Query(query, limit, offset)
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)
 	}
@@ -370,37 +408,48 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int) ([
 	return users, totalCount, nil
 }
 
-// ListActiveUsersWithPagination retrieves active users (not soft deleted) with pagination support
-func (r *Repository) ListActiveUsersWithPagination(schemaName string, limit, offset int) ([]User, int, error) {
+// ListActiveUsersByRoleWithPagination retrieves active users (not soft deleted) by role with pagination support
+func (r *Repository) ListActiveUsersByRoleWithPagination(schemaName string, role string, limit, offset int, search string) ([]User, int, error) {
 	if err := r.ValidateOrgSchema(schemaName); err != nil {
 		return nil, 0, err
 	}
 
-	// First, get total count of active users
+	// Build WHERE clause for search
+	searchClause := ""
+	countArgs := []interface{}{role}
+	queryArgs := []interface{}{role, limit, offset}
+	
+	if search != "" {
+		searchClause = ` AND (first_name ILIKE $2 OR last_name ILIKE $2 OR email ILIKE $2)`
+		countArgs = append(countArgs, "%"+search+"%")
+		queryArgs = []interface{}{role, "%"+search+"%", limit, offset}
+	}
+
+	// First, get total count of active users with specific role
 	var totalCount int
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM %s.users
-		WHERE deleted_at IS NULL
-	`, schemaName)
+		WHERE deleted_at IS NULL AND role = $1%s
+	`, schemaName, searchClause)
 
-	err := r.db.QueryRow(countQuery).Scan(&totalCount)
+	err := r.db.QueryRow(countQuery, countArgs...).Scan(&totalCount)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count active users: %w", err)
+		return nil, 0, fmt.Errorf("failed to count active users by role: %w", err)
 	}
 
 	// Then get paginated results
 	query := fmt.Sprintf(`
-		SELECT id, keycloak_user_id, email, first_name, last_name, phone_number, role, created_at, updated_at
+		SELECT id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at, updated_at
 		FROM %s.users
-		WHERE deleted_at IS NULL
+		WHERE deleted_at IS NULL AND role = $1%s
 		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`, schemaName)
+		LIMIT $%d OFFSET $%d
+	`, schemaName, searchClause, len(queryArgs)-1, len(queryArgs))
 
-	rows, err := r.db.Query(query, limit, offset)
+	rows, err := r.db.Query(query, queryArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list active users: %w", err)
+		return nil, 0, fmt.Errorf("failed to list active users by role: %w", err)
 	}
 	defer rows.Close()
 
