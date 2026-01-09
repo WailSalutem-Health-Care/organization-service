@@ -3,7 +3,6 @@ package organization
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -38,27 +37,15 @@ func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizat
 	sanitizedName := sanitizeName(req.Name)
 	schemaName := fmt.Sprintf("org_%s_%s", sanitizedName, orgID.String()[:8])
 
-	var settingsJSON []byte
-	if req.Settings != nil {
-		settingsJSON, err = json.Marshal(req.Settings)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal settings: %w", err)
-		}
-	} else {
-
-		settingsJSON = []byte("{}")
-	}
-
 	query := `
         INSERT INTO wailsalutem.organizations 
-        (id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8)
-        RETURNING id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
+        (id, name, schema_name, contact_email, contact_phone, address, status, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
+        RETURNING id, name, schema_name, contact_email, contact_phone, address, status, created_at
     `
 
 	createdAt := time.Now()
 	var org OrganizationResponse
-	var settingsStr sql.NullString
 
 	err = tx.QueryRowContext(ctx, query,
 		orgID,
@@ -67,7 +54,6 @@ func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizat
 		req.ContactEmail,
 		req.ContactPhone,
 		req.Address,
-		settingsJSON,
 		createdAt,
 	).Scan(
 		&org.ID,
@@ -77,7 +63,6 @@ func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizat
 		&org.ContactPhone,
 		&org.Address,
 		&org.Status,
-		&settingsStr,
 		&org.CreatedAt,
 	)
 
@@ -88,12 +73,6 @@ func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizat
 			}
 		}
 		return nil, fmt.Errorf("failed to insert organization: %w", err)
-	}
-
-	if settingsStr.Valid && settingsStr.String != "" {
-		if err := json.Unmarshal([]byte(settingsStr.String), &org.Settings); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-		}
 	}
 
 	if err := r.createOrganizationSchema(ctx, tx, schemaName); err != nil {
@@ -108,110 +87,18 @@ func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizat
 }
 
 func (r *Repository) createOrganizationSchema(ctx context.Context, tx *sql.Tx, schemaName string) error {
-
-	_, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", pq.QuoteIdentifier(schemaName)))
+	// Call the database function that creates the tenant schema
+	// This ensures schema definition is maintained in migrations only
+	_, err := tx.ExecContext(
+		ctx,
+		"SELECT wailsalutem.create_tenant_schema($1)",
+		schemaName,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to create schema: %w", err)
+		return fmt.Errorf("failed to create tenant schema via database function: %w", err)
 	}
 
-	usersTable := fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s.users (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            keycloak_user_id UUID NOT NULL,
-            email VARCHAR(255),
-            first_name VARCHAR(255),
-            last_name VARCHAR(255),
-            phone_number VARCHAR(50),
-            role VARCHAR(50),
-            is_active BOOLEAN DEFAULT true,
-            created_at TIMESTAMP DEFAULT now(),
-            updated_at TIMESTAMP,
-            deleted_at TIMESTAMP
-        )
-    `, pq.QuoteIdentifier(schemaName))
-
-	if _, err := tx.ExecContext(ctx, usersTable); err != nil {
-		return fmt.Errorf("failed to create users table: %w", err)
-	}
-
-	patientsTable := fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s.patients (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            keycloak_user_id UUID NOT NULL,
-            first_name VARCHAR(255),
-            last_name VARCHAR(255),
-            email VARCHAR(255),
-            phone_number VARCHAR(50),
-            date_of_birth DATE,
-            address TEXT,
-            emergency_contact_name VARCHAR(255),
-            emergency_contact_phone VARCHAR(50),
-            medical_notes TEXT,
-            careplan_type VARCHAR(100),
-            careplan_frequency VARCHAR(50),
-            is_active BOOLEAN DEFAULT true,
-            created_at TIMESTAMP DEFAULT now(),
-            updated_at TIMESTAMP,
-            deleted_at TIMESTAMP
-        )
-    `, pq.QuoteIdentifier(schemaName))
-
-	if _, err := tx.ExecContext(ctx, patientsTable); err != nil {
-		return fmt.Errorf("failed to create patients table: %w", err)
-	}
-
-	careSessionsTable := fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s.care_sessions (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            patient_id UUID REFERENCES %s.patients(id),
-            caregiver_id UUID,
-            check_in_time TIMESTAMP,
-            check_out_time TIMESTAMP,
-            status VARCHAR(50),
-            caregiver_notes TEXT,
-            created_at TIMESTAMP DEFAULT now(),
-            updated_at TIMESTAMP,
-            deleted_at TIMESTAMP
-        )
-    `, pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(schemaName))
-
-	if _, err := tx.ExecContext(ctx, careSessionsTable); err != nil {
-		return fmt.Errorf("failed to create care_sessions table: %w", err)
-	}
-
-	nfcTagsTable := fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s.nfc_tags (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            tag_id VARCHAR(100) UNIQUE,
-            patient_id UUID REFERENCES %s.patients(id),
-            issued_at TIMESTAMP DEFAULT now(),
-            status VARCHAR(50),
-            deactivated_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT now(),
-            updated_at TIMESTAMP
-        )
-    `, pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(schemaName))
-
-	if _, err := tx.ExecContext(ctx, nfcTagsTable); err != nil {
-		return fmt.Errorf("failed to create nfc_tags table: %w", err)
-	}
-
-	feedbackTable := fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s.feedback (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            care_session_id UUID UNIQUE,
-            patient_id UUID,
-            rating INTEGER CHECK (rating BETWEEN 1 AND 5),
-            patient_feedback TEXT,
-            created_at TIMESTAMP DEFAULT now(),
-            deleted_at TIMESTAMP
-        )
-    `, pq.QuoteIdentifier(schemaName))
-
-	if _, err := tx.ExecContext(ctx, feedbackTable); err != nil {
-		return fmt.Errorf("failed to create feedback table: %w", err)
-	}
-
+	log.Printf("Created tenant schema '%s' via database function", schemaName)
 	return nil
 }
 
@@ -235,7 +122,7 @@ func sanitizeName(name string) string {
 
 func (r *Repository) ListOrganizations(ctx context.Context) ([]OrganizationResponse, error) {
 	query := `
-		SELECT id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
+		SELECT id, name, schema_name, contact_email, contact_phone, address, status, created_at
 		FROM wailsalutem.organizations
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -250,7 +137,6 @@ func (r *Repository) ListOrganizations(ctx context.Context) ([]OrganizationRespo
 	var orgs []OrganizationResponse
 	for rows.Next() {
 		var org OrganizationResponse
-		var settingsStr sql.NullString
 		var contactEmail sql.NullString
 		var contactPhone sql.NullString
 		var address sql.NullString
@@ -263,7 +149,6 @@ func (r *Repository) ListOrganizations(ctx context.Context) ([]OrganizationRespo
 			&contactPhone,
 			&address,
 			&org.Status,
-			&settingsStr,
 			&org.CreatedAt,
 		)
 		if err != nil {
@@ -278,12 +163,6 @@ func (r *Repository) ListOrganizations(ctx context.Context) ([]OrganizationRespo
 		}
 		if address.Valid {
 			org.Address = address.String
-		}
-
-		if settingsStr.Valid && settingsStr.String != "" {
-			if err := json.Unmarshal([]byte(settingsStr.String), &org.Settings); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-			}
 		}
 
 		orgs = append(orgs, org)
@@ -312,7 +191,7 @@ func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit,
 
 	// Then get paginated results
 	query := `
-		SELECT id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
+		SELECT id, name, schema_name, contact_email, contact_phone, address, status, created_at
 		FROM wailsalutem.organizations
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -328,7 +207,6 @@ func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit,
 	var orgs []OrganizationResponse
 	for rows.Next() {
 		var org OrganizationResponse
-		var settingsStr sql.NullString
 		var contactEmail sql.NullString
 		var contactPhone sql.NullString
 		var address sql.NullString
@@ -341,7 +219,6 @@ func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit,
 			&contactPhone,
 			&address,
 			&org.Status,
-			&settingsStr,
 			&org.CreatedAt,
 		)
 		if err != nil {
@@ -358,12 +235,6 @@ func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit,
 			org.Address = address.String
 		}
 
-		if settingsStr.Valid && settingsStr.String != "" {
-			if err := json.Unmarshal([]byte(settingsStr.String), &org.Settings); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal settings: %w", err)
-			}
-		}
-
 		orgs = append(orgs, org)
 	}
 
@@ -376,13 +247,12 @@ func (r *Repository) ListOrganizationsWithPagination(ctx context.Context, limit,
 
 func (r *Repository) GetOrganization(ctx context.Context, id string) (*OrganizationResponse, error) {
 	query := `
-		SELECT id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
+		SELECT id, name, schema_name, contact_email, contact_phone, address, status, created_at
 		FROM wailsalutem.organizations
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 
 	var org OrganizationResponse
-	var settingsStr sql.NullString
 	var contactEmail sql.NullString
 	var contactPhone sql.NullString
 	var address sql.NullString
@@ -395,7 +265,6 @@ func (r *Repository) GetOrganization(ctx context.Context, id string) (*Organizat
 		&contactPhone,
 		&address,
 		&org.Status,
-		&settingsStr,
 		&org.CreatedAt,
 	)
 
@@ -414,12 +283,6 @@ func (r *Repository) GetOrganization(ctx context.Context, id string) (*Organizat
 	}
 	if address.Valid {
 		org.Address = address.String
-	}
-
-	if settingsStr.Valid && settingsStr.String != "" {
-		if err := json.Unmarshal([]byte(settingsStr.String), &org.Settings); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-		}
 	}
 
 	return &org, nil
@@ -451,15 +314,6 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 		args = append(args, *req.Address)
 		argIndex++
 	}
-	if req.Settings != nil {
-		settingsJSON, err := json.Marshal(*req.Settings)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal settings: %w", err)
-		}
-		updates = append(updates, fmt.Sprintf("settings = $%d", argIndex))
-		args = append(args, settingsJSON)
-		argIndex++
-	}
 
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
@@ -477,11 +331,10 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 		UPDATE wailsalutem.organizations
 		SET %s
 		WHERE id = $%d AND deleted_at IS NULL
-		RETURNING id, name, schema_name, contact_email, contact_phone, address, status, settings, created_at
+		RETURNING id, name, schema_name, contact_email, contact_phone, address, status, created_at
 	`, strings.Join(updates, ", "), argIndex)
 
 	var org OrganizationResponse
-	var settingsStr sql.NullString
 	var contactEmail sql.NullString
 	var contactPhone sql.NullString
 	var address sql.NullString
@@ -494,7 +347,6 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 		&contactPhone,
 		&address,
 		&org.Status,
-		&settingsStr,
 		&org.CreatedAt,
 	)
 
@@ -513,12 +365,6 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 	}
 	if address.Valid {
 		org.Address = address.String
-	}
-
-	if settingsStr.Valid && settingsStr.String != "" {
-		if err := json.Unmarshal([]byte(settingsStr.String), &org.Settings); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-		}
 	}
 
 	return &org, nil
