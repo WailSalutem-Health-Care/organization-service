@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: organization-service
+  namespace: wailsalutem-suite
+spec:
+  to:
+    kind: Service
+    name: organization-service
+  port:
+    targetPort: 80
+  tls:
+    termination: edge
