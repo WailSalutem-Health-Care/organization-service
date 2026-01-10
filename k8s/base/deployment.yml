@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: organization-service
-          image: image-registry.openshift-image-registry.svc:5000/wailsalutem-suite/organization-service/organization-service:latest
+          image: image-registry.openshift-image-registry.svc:5000/wailsalutem-suite/organization-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           envFrom:
