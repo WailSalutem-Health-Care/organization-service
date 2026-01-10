@@ -3,6 +3,7 @@ package organization
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
@@ -30,6 +31,9 @@ func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganization
 }
 
 func (s *Service) ListOrganizations(ctx context.Context, principal *auth.Principal) ([]OrganizationResponse, error) {
+	// Debug logging
+	log.Printf("[DEBUG] ListOrganizations - UserID: %s, OrgID: %s, Roles: %v", principal.UserID, principal.OrgID, principal.Roles)
+
 	// Check if user is SUPER_ADMIN
 	isSuperAdmin := false
 	for _, role := range principal.Roles {
@@ -39,17 +43,21 @@ func (s *Service) ListOrganizations(ctx context.Context, principal *auth.Princip
 		}
 	}
 
+	log.Printf("[DEBUG] isSuperAdmin: %v", isSuperAdmin)
+
 	// SUPER_ADMIN can see all organizations
 	if isSuperAdmin {
 		orgs, err := s.repo.ListOrganizations(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list organizations: %w", err)
 		}
+		log.Printf("[DEBUG] Returning %d organizations for SUPER_ADMIN", len(orgs))
 		return orgs, nil
 	}
 
 	// ORG_ADMIN can only see their own organization
 	if principal.OrgID == "" {
+		log.Printf("[DEBUG] No org_id for non-SUPER_ADMIN user")
 		return nil, fmt.Errorf("no organization associated with this user")
 	}
 
