@@ -93,7 +93,7 @@ jobs:
       - name: Tag image with commit SHA
         run: |
           oc tag ${{ env.APP_NAME }}:latest ${{ env.APP_NAME }}:${{ github.sha }}
-          echo "✅ Image tagged: ${{ env.APP_NAME }}:${{ github.sha }}"
+          echo "Image tagged: ${{ env.APP_NAME }}:${{ github.sha }}"
 
   # Deploy (runs if code OR k8s config changed)
   deploy:
@@ -130,7 +130,7 @@ jobs:
       - name: Apply Deployment and Services
         run: |
           echo "Applying deployment manifests..."
-          oc apply -f k8s/base/deployment.yaml
+          oc apply -f k8s/base/deployment.yml
           oc apply -f k8s/base/service.yml
           oc apply -f k8s/base/route.yml
 
