@@ -1,17 +1,24 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/WailSalutem-Health-Care/organisation-service/internal/auth"
-	"github.com/gorilla/mux"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/db"
+	httpRouter "github.com/WailSalutem-Health-Care/organization-service/internal/http"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 )
 
 func main() {
-	log.Println("organisation-service starting on :8080")
+	log.Println("organization-service starting on :8080")
+	// Connect to database
+	database, err := db.Connect()
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer database.Close()
 
 	// Load auth config
 	cfg := auth.LoadConfig()
@@ -33,53 +40,20 @@ func main() {
 	// Create token verifier
 	ver := auth.NewVerifier(cfg, jwks)
 
-	// Setup router
-	r := mux.NewRouter()
+	// Initialize RabbitMQ publisher (optional dependency)
+	publisher, err := messaging.NewPublisher()
+	if err != nil {
+		log.Printf("Warning: failed to connect to RabbitMQ: %v", err)
+		log.Println("Service will continue without event publishing (RabbitMQ optional)")
+		publisher = nil
+	} else {
+		defer publisher.Close()
+		log.Println("✓ RabbitMQ publisher initialized")
+	}
 
-	// Public health endpoint
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok","service":"organisation-service"}`))
-	}).Methods("GET")
+	// Setup router with all routes
+	router := httpRouter.SetupRouter(database, ver, perms, publisher)
 
-	// Protected route example: POST /organizations (requires organization:create)
-	createOrgHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		// Principal is available in context; handlers MUST use org_id from token for multi-tenancy
-		pr, _ := auth.FromContext(req.Context())
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"result": "created",
-			"org_id": pr.OrgID,
-			"user":   pr.UserID,
-		})
-	})
-
-	// Wrap with auth middleware and permission guard
-	r.Handle("/organizations",
-		auth.Middleware(ver)(
-			auth.RequirePermission("organization:create", perms)(createOrgHandler),
-		),
-	).Methods("POST")
-
-	// Example: GET /organizations (requires organization:view)
-	listOrgHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		pr, _ := auth.FromContext(req.Context())
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"organizations": []string{},
-			"org_id":        pr.OrgID,
-			"user":          pr.UserID,
-		})
-	})
-
-	r.Handle("/organizations",
-		auth.Middleware(ver)(
-			auth.RequirePermission("organization:view", perms)(listOrgHandler),
-		),
-	).Methods("GET")
-
-	log.Println("auth configured, jwks loaded, listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Println("auth configured, jwks loaded, database connected, listening on :8080")
+	log.Fatal(http.ListenAndServe(":8080", router))
 }

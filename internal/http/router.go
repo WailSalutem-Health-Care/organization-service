@@ -1,0 +1,222 @@
+package http
+
+import (
+	"database/sql"
+	"log"
+	"net/http"
+
+	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/patient"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/users"
+	"github.com/gorilla/mux"
+)
+
+// SetupRouter initializes all routes for the application
+func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher *messaging.Publisher) *mux.Router {
+	// Initialize organization components
+	orgRepo := organization.NewRepository(db, publisher)
+	orgService := organization.NewService(orgRepo)
+	orgHandler := organization.NewHandler(orgService)
+
+	// Initialize Keycloak admin client
+	keycloakAdmin, err := auth.NewKeycloakAdminClient()
+	if err != nil {
+		log.Fatalf("failed to initialize Keycloak admin client: %v", err)
+	}
+
+	// Initialize patient components
+	patientRepo := patient.NewRepository(db, publisher)
+	patientService := patient.NewService(patientRepo, keycloakAdmin)
+	patientHandler := patient.NewHandler(patientService, db)
+
+	// Initialize user components
+	userRepo := users.NewRepository(db, publisher)
+	userService := users.NewService(userRepo, keycloakAdmin)
+	userHandler := users.NewHandler(userService)
+
+	r := mux.NewRouter()
+
+	// Public health endpoint
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok","service":"organization-service"}`))
+	}).Methods("GET")
+
+	r.Handle("/organizations",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:create", perms)(
+				http.HandlerFunc(orgHandler.CreateOrganization),
+			),
+		),
+	).Methods("POST")
+
+	r.Handle("/organizations",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:view", perms)(
+				http.HandlerFunc(orgHandler.ListOrganizations),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organizations/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:view", perms)(
+				http.HandlerFunc(orgHandler.GetOrganization),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organizations/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:update", perms)(
+				http.HandlerFunc(orgHandler.UpdateOrganization),
+			),
+		),
+	).Methods("PUT", "PATCH")
+
+	r.Handle("/organizations/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("organization:delete", perms)(
+				http.HandlerFunc(orgHandler.DeleteOrganization),
+			),
+		),
+	).Methods("DELETE")
+
+	r.Handle("/organization/patients",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:create", perms)(
+				http.HandlerFunc(patientHandler.CreatePatient),
+			),
+		),
+	).Methods("POST")
+
+	r.Handle("/organization/patients",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:view", perms)(
+				http.HandlerFunc(patientHandler.ListPatients),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/patients/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:view", perms)(
+				http.HandlerFunc(patientHandler.ListActivePatients),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/patients/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:view", perms)(
+				http.HandlerFunc(patientHandler.GetPatient),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/patients/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:update", perms)(
+				http.HandlerFunc(patientHandler.UpdatePatient),
+			),
+		),
+	).Methods("PUT", "PATCH")
+
+	r.Handle("/organization/patients/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("patient:delete", perms)(
+				http.HandlerFunc(patientHandler.DeletePatient),
+			),
+		),
+	).Methods("DELETE")
+
+	r.Handle("/organization/users",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:create", perms)(
+				http.HandlerFunc(userHandler.CreateUser),
+			),
+		),
+	).Methods("POST")
+
+	r.Handle("/organization/users",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListUsers),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/caregivers/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListActiveCaregivers),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/municipality/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListActiveMunicipality),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/insurers/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListActiveInsurers),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/org-admins/active",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.ListActiveOrgAdmins),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/me",
+		auth.Middleware(verifier)(
+			http.HandlerFunc(userHandler.UpdateMyProfile),
+		),
+	).Methods("PATCH")
+
+	r.Handle("/organization/users/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:view", perms)(
+				http.HandlerFunc(userHandler.GetUser),
+			),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:update", perms)(
+				http.HandlerFunc(userHandler.UpdateUser),
+			),
+		),
+	).Methods("PATCH")
+
+	r.Handle("/organization/users/{id}/reset-password",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:update", perms)(
+				http.HandlerFunc(userHandler.ResetPassword),
+			),
+		),
+	).Methods("POST")
+
+	r.Handle("/organization/users/{id}",
+		auth.Middleware(verifier)(
+			auth.RequirePermission("user:delete", perms)(
+				http.HandlerFunc(userHandler.DeleteUser),
+			),
+		),
+	).Methods("DELETE")
+
+	return r
+}

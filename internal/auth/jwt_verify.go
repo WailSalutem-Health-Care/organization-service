@@ -9,10 +9,11 @@ import (
 
 // Principal holds identity extracted from a validated token.
 type Principal struct {
-	UserID string
-	Roles  []string
-	OrgID  string
-	Claims jwt.MapClaims
+	UserID        string
+	Roles         []string
+	OrgID         string
+	OrgSchemaName string
+	Claims        jwt.MapClaims
 }
 
 var (
@@ -22,18 +23,18 @@ var (
 	ErrMissingSub    = errors.New("missing sub claim")
 )
 
-type verifier struct {
+type Verifier struct {
 	cfg  Config
 	jwks *JWKS
 }
 
 // NewVerifier constructs a verifier with config and JWKS.
-func NewVerifier(cfg Config, jwks *JWKS) *verifier {
-	return &verifier{cfg: cfg, jwks: jwks}
+func NewVerifier(cfg Config, jwks *JWKS) *Verifier {
+	return &Verifier{cfg: cfg, jwks: jwks}
 }
 
 // ParseAndVerifyToken verifies a bearer token, validates issuer/exp and returns Principal.
-func (v *verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
+func (v *Verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
 	if tokenString == "" {
 		return nil, ErrNoToken
 	}
@@ -82,16 +83,23 @@ func (v *verifier) ParseAndVerifyToken(tokenString string) (*Principal, error) {
 		}
 	}
 
-	// organisationId may be string or number
+	// organizationID may be string or number
 	var orgID string
-	if v, ok := claims["organisationId"].(string); ok {
+	if v, ok := claims["organizationID"].(string); ok {
 		orgID = v
 	}
 
+	// orgSchemaName from claims
+	var orgSchemaName string
+	if v, ok := claims["orgSchemaName"].(string); ok {
+		orgSchemaName = v
+	}
+
 	return &Principal{
-		UserID: sub,
-		Roles:  roles,
-		OrgID:  orgID,
-		Claims: claims,
+		UserID:        sub,
+		Roles:         roles,
+		OrgID:         orgID,
+		OrgSchemaName: orgSchemaName,
+		Claims:        claims,
 	}, nil
 }

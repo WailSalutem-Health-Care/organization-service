@@ -3,14 +3,39 @@ roles:
     - organization:create
     - organization:manage
     - organization:view
+    - organization:update
+    - organization:delete
+    
+    - patient:create
+    - patient:view
+    - patient:update
+    - patient:delete
+
+    - user:create
+    - user:view
+    - user:update
+    - user:delete
 
   ORG_ADMIN:
     - organization:view
-    - user:manage
+    
+    - patient:view
+    - patient:create
+    - patient:update
+    - patient:delete
+    
+    - user:create
+    - user:view
+    - user:update
+    - user:delete
+    
     - nfc:assign
     - care-session:report
+    
 
   CAREGIVER:
+    - patient:view
+
     - nfc:check-in
     - nfc:check-out
     - care-session:create
@@ -18,6 +43,9 @@ roles:
     - care-session:read
 
   PATIENT:
+    - patient:view
+    - patient:update
+
     - care-session:read
 
   MUNICIPALITY:
