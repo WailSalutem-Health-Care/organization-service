@@ -1,32 +1,161 @@
-name: Deploy organization-service
+name: Build and Deploy to OpenShift
 
 on:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - faizan_development
+  pull_request:
+    branches: 
+      - main
+
+env:
+  OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+  OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+  OPENSHIFT_NAMESPACE: ${{ secrets.OPENSHIFT_NAMESPACE }}
+  APP_NAME: organization-service
 
 jobs:
-  deploy:
+  # Detect what changed to optimize build
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      k8s: ${{ steps.filter.outputs.k8s }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install oc
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'cmd/**'
+              - 'internal/**'
+              - 'Dockerfile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'permissions.yml'
+            k8s:
+              - 'k8s/**'
+            docs:
+              - '**.md'
+              - 'docs/**'
+              - '.gitignore'
+              - 'LICENSE'
+              - 'api-documentation.yaml'
+
+  # Build image in OpenShift (only if code changed)
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenShift CLI
         run: |
           curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
           tar -xzf oc.tar.gz
           sudo mv oc /usr/local/bin/oc
-      
+          oc version --client
+
       - name: Login to OpenShift
         run: |
-          oc login $OPENSHIFT_SERVER \
-            --token=$OPENSHIFT_TOKEN \
+          oc login ${{ env.OPENSHIFT_SERVER }} \
+            --token=${{ env.OPENSHIFT_TOKEN }} \
             --insecure-skip-tls-verify=true
-        env:
-          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
-          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
-      
-      - name: Select project
-        run: oc project ${{ secrets.OPENSHIFT_NAMESPACE }}
-      
-      - name: Trigger build
-        run: oc start-build organization-service --follow
+
+      - name: Switch to project
+        run: oc project ${{ env.OPENSHIFT_NAMESPACE }}
+
+      - name: Create BuildConfig if not exists
+        run: |
+          if ! oc get bc/${{ env.APP_NAME }} 2>/dev/null; then
+            echo "Creating BuildConfig..."
+            oc new-build --name=${{ env.APP_NAME }} \
+              --binary \
+              --strategy=docker \
+              --to=${{ env.APP_NAME }}:latest
+          else
+            echo "BuildConfig already exists"
+          fi
+
+      - name: Build image in OpenShift
+        run: |
+          echo "Starting build with source code..."
+          oc start-build ${{ env.APP_NAME }} \
+            --from-dir=. \
+            --follow \
+            --wait
+
+      - name: Tag image with commit SHA
+        run: |
+          oc tag ${{ env.APP_NAME }}:latest ${{ env.APP_NAME }}:${{ github.sha }}
+          echo "✅ Image tagged: ${{ env.APP_NAME }}:${{ github.sha }}"
+
+  # Deploy (runs if code OR k8s config changed)
+  deploy:
+    needs: [changes, build]
+    if: |
+      always() && 
+      (needs.changes.outputs.code == 'true' || needs.changes.outputs.k8s == 'true') &&
+      needs.build.result != 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenShift CLI
+        run: |
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
+          tar -xzf oc.tar.gz
+          sudo mv oc /usr/local/bin/oc
+
+      - name: Login to OpenShift
+        run: |
+          oc login ${{ env.OPENSHIFT_SERVER }} \
+            --token=${{ env.OPENSHIFT_TOKEN }} \
+            --insecure-skip-tls-verify=true
+
+      - name: Switch to project
+        run: oc project ${{ env.OPENSHIFT_NAMESPACE }}
+
+      - name: Apply ConfigMaps and Secrets
+        run: |
+          echo "Applying configs..."
+          oc apply -f k8s/config/configmap.yml
+          oc apply -f k8s/config/secret.yml
+
+      - name: Apply Deployment and Services
+        run: |
+          echo "Applying deployment manifests..."
+          oc apply -f k8s/base/deployment.yaml
+          oc apply -f k8s/base/service.yml
+          oc apply -f k8s/base/route.yml
+
+      - name: Rollout restart (if code changed)
+        if: needs.changes.outputs.code == 'true'
+        run: |
+          echo "Rolling out new deployment..."
+          oc rollout restart deployment/${{ env.APP_NAME }}
+          oc rollout status deployment/${{ env.APP_NAME }} --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          echo "=== Deployment Status ==="
+          oc get deployment ${{ env.APP_NAME }}
+          echo ""
+          echo "=== Pods ==="
+          oc get pods -l app=${{ env.APP_NAME }}
+          echo ""
+          echo "=== Service ==="
+          oc get svc ${{ env.APP_NAME }}
+          echo ""
+          echo "=== Route ==="
+          oc get route ${{ env.APP_NAME }}
+
+      - name: Get application URL
+        run: |
+          APP_URL=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
+          echo "🚀 Application deployed at: https://$APP_URL"
