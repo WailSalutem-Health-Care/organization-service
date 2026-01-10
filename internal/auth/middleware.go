@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -28,6 +29,7 @@ func Middleware(ver *Verifier) func(http.Handler) http.Handler {
 			tok := parts[1]
 			pr, err := ver.ParseAndVerifyToken(tok)
 			if err != nil {
+				log.Printf("[ERROR] Token validation failed: %v", err)
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
