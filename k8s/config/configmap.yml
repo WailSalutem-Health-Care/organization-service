@@ -12,7 +12,7 @@ data:
   RABBITMQ_HOST: rabbitmq
   RABBITMQ_PORT: "5672"
   
-  KEYCLOAK_BASE_URL: http://keycloak
+  KEYCLOAK_BASE_URL: https://keycloak-wailsalutem-suite.apps.inholland-minor.openshift.eu
   KEYCLOAK_REALM: wailsalutem
   KEYCLOAK_API_CLIENT_ID: wailsalutem-api
   KEYCLOAK_ADMIN_CLIENT_ID: wailsalutem-admin
