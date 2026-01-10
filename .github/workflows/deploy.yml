@@ -4,7 +4,6 @@ on:
   push:
     branches: 
       - main
-      - faizan_development
   pull_request:
     branches: 
       - main
