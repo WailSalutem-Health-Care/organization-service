@@ -550,7 +550,7 @@ func (r *Repository) Update(user *User) error {
 		return err
 	}
 
-	user.UpdatedAt = time.Now()
+	user.UpdatedAt = time.Now().UTC() // Explicitly set to UTC
 
 	query := fmt.Sprintf(`
 		UPDATE %s.users
@@ -593,12 +593,12 @@ func (r *Repository) Delete(schemaName, orgID, userID string, role string) error
 	// Soft delete: Set deleted_at timestamp
 	query := fmt.Sprintf(`
 		UPDATE %s.users 
-		SET deleted_at = $1,
-		    updated_at = $1
-		WHERE id = $2 AND deleted_at IS NULL
-	`, schemaName)
+	SET deleted_at = $1,
+	    updated_at = $1
+	WHERE id = $2 AND deleted_at IS NULL
+`, schemaName)
 
-	deletedAt := time.Now()
+	deletedAt := time.Now().UTC() // Explicitly set to UTC
 	result, err := r.db.Exec(query, deletedAt, userID)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete user: %w", err)
