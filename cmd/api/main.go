@@ -64,5 +64,7 @@ func main() {
 	router := httpRouter.SetupRouter(database, ver, perms, publisher)
 
 	log.Println("auth configured, jwks loaded, database connected, listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+
+	// Wrap router with CORS middleware and start server
+	log.Fatal(http.ListenAndServe(":8080", httpRouter.CORSMiddleware(router)))
 }
