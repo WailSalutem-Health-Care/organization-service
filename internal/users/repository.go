@@ -406,15 +406,18 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int, se
 		var email sql.NullString
 		var firstName sql.NullString
 		var lastName sql.NullString
+		var employeeID sql.NullString
 
 		err := rows.Scan(
 			&user.ID,
 			&user.KeycloakUserID,
+			&employeeID,
 			&email,
 			&firstName,
 			&lastName,
 			&phoneNumber,
 			&user.Role,
+			&user.IsActive,
 			&user.CreatedAt,
 			&updatedAt,
 		)
@@ -422,6 +425,9 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int, se
 			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
 		}
 
+		if employeeID.Valid {
+			user.EmployeeID = employeeID.String
+		}
 		if email.Valid {
 			user.Email = email.String
 		}
@@ -502,15 +508,18 @@ func (r *Repository) ListActiveUsersByRoleWithPagination(schemaName string, role
 		var email sql.NullString
 		var firstName sql.NullString
 		var lastName sql.NullString
+		var employeeID sql.NullString
 
 		err := rows.Scan(
 			&user.ID,
 			&user.KeycloakUserID,
+			&employeeID,
 			&email,
 			&firstName,
 			&lastName,
 			&phoneNumber,
 			&user.Role,
+			&user.IsActive,
 			&user.CreatedAt,
 			&updatedAt,
 		)
@@ -518,6 +527,9 @@ func (r *Repository) ListActiveUsersByRoleWithPagination(schemaName string, role
 			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
 		}
 
+		if employeeID.Valid {
+			user.EmployeeID = employeeID.String
+		}
 		if email.Valid {
 			user.Email = email.String
 		}
