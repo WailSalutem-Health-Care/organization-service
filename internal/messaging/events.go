@@ -168,7 +168,7 @@ func NewBaseEvent(eventType string) BaseEvent {
 	return BaseEvent{
 		EventType:   eventType,
 		EventID:     fmt.Sprintf("%d", time.Now().UnixNano()),
-		Timestamp:   time.Now(),
+		Timestamp:   time.Now().UTC(), // Explicitly set to UTC
 		ServiceName: "organization-service",
 	}
 }

@@ -90,8 +90,8 @@ func (p *Publisher) Publish(ctx context.Context, routingKey string, eventData in
 		amqp.Publishing{
 			ContentType:  "application/json",
 			Body:         body,
-			DeliveryMode: amqp.Persistent, // persist messages to disk
-			Timestamp:    time.Now(),
+			DeliveryMode: amqp.Persistent,  // persist messages to disk
+			Timestamp:    time.Now().UTC(), // Explicitly set to UTC
 			MessageId:    fmt.Sprintf("%d", time.Now().UnixNano()),
 		},
 	)
@@ -100,7 +100,7 @@ func (p *Publisher) Publish(ctx context.Context, routingKey string, eventData in
 		return fmt.Errorf("failed to publish event to %s: %w", routingKey, err)
 	}
 
-	log.Printf("📤 Published event: %s", routingKey)
+	log.Printf("Published event: %s", routingKey)
 	return nil
 }
 
