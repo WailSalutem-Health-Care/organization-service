@@ -26,7 +26,7 @@ func NewCleanupService(db *sql.DB) *CleanupService {
 // CleanupExpiredOrganizations permanently deletes organizations that have been soft-deleted
 // for more than 3 years, including dropping their schemas
 func (s *CleanupService) CleanupExpiredOrganizations(ctx context.Context) (int, error) {
-	cutoffDate := time.Now().UTC().Add(-RetentionPeriod) // Explicitly set to UTC
+	cutoffDate := time.Now().Add(-RetentionPeriod)
 	log.Printf("Starting cleanup of organizations deleted before %s", cutoffDate.Format(time.RFC3339))
 
 	// Find organizations that have been soft-deleted for more than 3 years
@@ -134,7 +134,7 @@ func (s *CleanupService) permanentlyDeleteOrganization(ctx context.Context, orgI
 
 // GetExpiredOrganizationsCount returns count of organizations eligible for cleanup
 func (s *CleanupService) GetExpiredOrganizationsCount(ctx context.Context) (int, error) {
-	cutoffDate := time.Now().UTC().Add(-RetentionPeriod) // Explicitly set to UTC
+	cutoffDate := time.Now().Add(-RetentionPeriod)
 
 	var count int
 	query := `

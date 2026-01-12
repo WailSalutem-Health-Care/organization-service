@@ -44,7 +44,7 @@ func (r *Repository) CreateOrganization(ctx context.Context, req CreateOrganizat
         RETURNING id, name, schema_name, contact_email, contact_phone, address, status, created_at
     `
 
-	createdAt := time.Now().UTC() // Explicitly set to UTC
+	createdAt := time.Now()
 	var org OrganizationResponse
 
 	err = tx.QueryRowContext(ctx, query,
@@ -341,7 +341,7 @@ func (r *Repository) UpdateOrganization(ctx context.Context, id string, req Upda
 
 	// Add updated_at timestamp
 	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now().UTC()) // Explicitly set to UTC
+	args = append(args, time.Now())
 	argIndex++
 
 	// Add ID parameter
@@ -406,7 +406,7 @@ func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
 		WHERE id = $2 AND deleted_at IS NULL
 	`
 
-	deletedAt := time.Now().UTC() // Explicitly set to UTC
+	deletedAt := time.Now()
 	result, err := r.db.ExecContext(ctx, query, deletedAt, id)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete organization: %w", err)

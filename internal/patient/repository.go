@@ -61,7 +61,7 @@ func (r *Repository) generatePatientID(ctx context.Context, schemaName string) (
 
 func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID string, keycloakUserID string, req CreatePatientRequest) (*PatientResponse, error) {
 	patientID := uuid.New()
-	createdAt := time.Now().UTC() // Explicitly set to UTC
+	createdAt := time.Now()
 
 	// Generate sequential patient ID
 	patientDisplayID, err := r.generatePatientID(ctx, schemaName)
@@ -702,7 +702,7 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	}
 
 	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now().UTC()) // Explicitly set to UTC
+	args = append(args, time.Now())
 	argIndex++
 
 	args = append(args, id)
@@ -796,7 +796,7 @@ func (r *Repository) DeletePatient(ctx context.Context, schemaName string, orgID
 		WHERE id = $2 AND deleted_at IS NULL
 	`, pq.QuoteIdentifier(schemaName))
 
-	deletedAt := time.Now().UTC() // Explicitly set to UTC
+	deletedAt := time.Now()
 	result, err := r.db.ExecContext(ctx, query, deletedAt, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete patient: %w", err)

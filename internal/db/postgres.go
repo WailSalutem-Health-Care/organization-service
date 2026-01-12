@@ -22,7 +22,7 @@ func Connect() (*sql.DB, error) {
 	}
 
 	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=CET",
 		host, port, user, password, dbname,
 	)
 
@@ -35,12 +35,12 @@ func Connect() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Set timezone to UTC for consistency
-	_, err = db.Exec("SET TIME ZONE 'UTC'")
+	// Set timezone to CET (GMT+1)
+	_, err = db.Exec("SET TIME ZONE 'CET'")
 	if err != nil {
 		return nil, fmt.Errorf("failed to set timezone: %w", err)
 	}
 
-	log.Println("✓ Connected to PostgreSQL database")
+	log.Println("✓ Connected to PostgreSQL database (CET timezone)")
 	return db, nil
 }
