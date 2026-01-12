@@ -1,5 +1,5 @@
 FROM golang:1.22-alpine AS builder
-RUN apk add --no-cache git
+RUN apk add --no-cache git tzdata
 WORKDIR /app
 
 COPY go.mod ./
@@ -12,11 +12,15 @@ RUN go mod download && \
 
 FROM gcr.io/distroless/base-debian12
 WORKDIR /app
+
+# Copy timezone data from builder
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+
 COPY --from=builder /app/app .
 COPY --from=builder /app/permissions.yml .
 
-# Set timezone to UTC
-ENV TZ=UTC
+# Set timezone to CET (GMT+1)
+ENV TZ=CET
 
 EXPOSE 8080
 CMD ["./app"]

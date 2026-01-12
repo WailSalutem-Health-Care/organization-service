@@ -88,8 +88,8 @@ func (r *Repository) Create(user *User) error {
 	}
 
 	user.ID = uuid.New().String()
-	user.CreatedAt = time.Now().UTC() // Explicitly set to UTC
-	user.IsActive = true              // Default to active when creating
+	user.CreatedAt = time.Now()
+	user.IsActive = true // Default to active when creating
 
 	// Generate employee ID
 	employeeID, err := r.generateEmployeeID(user.OrgSchemaName)
@@ -550,7 +550,7 @@ func (r *Repository) Update(user *User) error {
 		return err
 	}
 
-	user.UpdatedAt = time.Now().UTC() // Explicitly set to UTC
+	user.UpdatedAt = time.Now()
 
 	query := fmt.Sprintf(`
 		UPDATE %s.users
@@ -598,7 +598,7 @@ func (r *Repository) Delete(schemaName, orgID, userID string, role string) error
 	WHERE id = $2 AND deleted_at IS NULL
 `, schemaName)
 
-	deletedAt := time.Now().UTC() // Explicitly set to UTC
+	deletedAt := time.Now()
 	result, err := r.db.Exec(query, deletedAt, userID)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete user: %w", err)

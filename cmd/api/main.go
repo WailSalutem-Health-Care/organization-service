@@ -12,8 +12,14 @@ import (
 )
 
 func main() {
-	// Force Go runtime to use UTC timezone globally
-	time.Local = time.UTC
+	// Set timezone to CET (Central European Time - GMT+1, auto-adjusts to CEST in summer)
+	loc, err := time.LoadLocation("CET")
+	if err != nil {
+		log.Printf("Warning: failed to load CET timezone: %v, using UTC", err)
+	} else {
+		time.Local = loc
+		log.Println("✓ Timezone set to CET (GMT+1)")
+	}
 
 	log.Println("organization-service starting on :8080")
 	// Connect to database

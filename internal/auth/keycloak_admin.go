@@ -87,7 +87,7 @@ func NewKeycloakAdminClient() (*KeycloakAdminClient, error) {
 // getAdminToken obtains an admin access token using client credentials
 func (k *KeycloakAdminClient) getAdminToken() (string, error) {
 	k.tokenMux.RLock()
-	if k.accessToken != "" && time.Now().UTC().Before(k.tokenExpiry) { // Explicitly set to UTC
+	if k.accessToken != "" && time.Now().Before(k.tokenExpiry) {
 		token := k.accessToken
 		k.tokenMux.RUnlock()
 		return token, nil
@@ -98,7 +98,7 @@ func (k *KeycloakAdminClient) getAdminToken() (string, error) {
 	defer k.tokenMux.Unlock()
 
 	// Double check after acquiring write lock
-	if k.accessToken != "" && time.Now().UTC().Before(k.tokenExpiry) { // Explicitly set to UTC
+	if k.accessToken != "" && time.Now().Before(k.tokenExpiry) {
 		return k.accessToken, nil
 	}
 
@@ -139,7 +139,7 @@ func (k *KeycloakAdminClient) getAdminToken() (string, error) {
 
 	// Store token with 60 second buffer before expiry
 	k.accessToken = result.AccessToken
-	k.tokenExpiry = time.Now().UTC().Add(time.Duration(result.ExpiresIn-60) * time.Second) // Explicitly set to UTC
+	k.tokenExpiry = time.Now().Add(time.Duration(result.ExpiresIn-60) * time.Second)
 
 	log.Printf("Obtained new Keycloak admin token (expires in %d seconds)", result.ExpiresIn)
 
