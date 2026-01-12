@@ -14,5 +14,9 @@ FROM gcr.io/distroless/base-debian12
 WORKDIR /app
 COPY --from=builder /app/app .
 COPY --from=builder /app/permissions.yml .
+
+# Set timezone to UTC
+ENV TZ=UTC
+
 EXPOSE 8080
 CMD ["./app"]

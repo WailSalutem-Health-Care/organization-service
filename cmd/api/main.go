@@ -12,6 +12,9 @@ import (
 )
 
 func main() {
+	// Force Go runtime to use UTC timezone globally
+	time.Local = time.UTC
+
 	log.Println("organization-service starting on :8080")
 	// Connect to database
 	database, err := db.Connect()
