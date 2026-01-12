@@ -88,8 +88,8 @@ func (r *Repository) Create(user *User) error {
 	}
 
 	user.ID = uuid.New().String()
-	user.CreatedAt = time.Now()
-	user.IsActive = true // Default to active when creating
+	user.CreatedAt = time.Now().UTC() // Explicitly set to UTC
+	user.IsActive = true              // Default to active when creating
 
 	// Generate employee ID
 	employeeID, err := r.generateEmployeeID(user.OrgSchemaName)
