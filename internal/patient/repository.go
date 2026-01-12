@@ -25,9 +25,49 @@ func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
 	}
 }
 
+// generatePatientID generates a sequential patient ID like PT-0001, PT-0002, etc.
+func (r *Repository) generatePatientID(ctx context.Context, schemaName string) (string, error) {
+	query := fmt.Sprintf(`
+		SELECT patient_id FROM %s.patients 
+		WHERE patient_id IS NOT NULL 
+		ORDER BY patient_id DESC 
+		LIMIT 1
+	`, pq.QuoteIdentifier(schemaName))
+
+	var lastPatientID sql.NullString
+	err := r.db.QueryRowContext(ctx, query).Scan(&lastPatientID)
+
+	if err == sql.ErrNoRows || !lastPatientID.Valid {
+		// First patient in this organization
+		return "PT-0001", nil
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to get last patient ID: %w", err)
+	}
+
+	// Parse the number from PT-XXXX format
+	var currentNum int
+	_, err = fmt.Sscanf(lastPatientID.String, "PT-%d", &currentNum)
+	if err != nil {
+		// If parsing fails, start from 1
+		return "PT-0001", nil
+	}
+
+	// Increment and format with leading zeros
+	nextNum := currentNum + 1
+	return fmt.Sprintf("PT-%04d", nextNum), nil
+}
+
 func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID string, keycloakUserID string, req CreatePatientRequest) (*PatientResponse, error) {
 	patientID := uuid.New()
 	createdAt := time.Now()
+
+	// Generate sequential patient ID
+	patientDisplayID, err := r.generatePatientID(ctx, schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate patient ID: %w", err)
+	}
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s.patients 
@@ -52,9 +92,9 @@ func (r *Repository) CreatePatient(ctx context.Context, schemaName string, orgID
 	var careplanFrequency sql.NullString
 	var patientIDStr sql.NullString
 
-	err := r.db.QueryRowContext(ctx, query,
+	err = r.db.QueryRowContext(ctx, query,
 		patientID,
-		nil, // patient_id will be auto-generated or set to NULL for now
+		patientDisplayID, // Use generated patient ID like PT-0001
 		keycloakUserID,
 		req.FirstName,
 		req.LastName,
@@ -259,7 +299,7 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 	// Build WHERE clause for search
 	whereClause := "WHERE deleted_at IS NULL"
 	args := []interface{}{limit, offset}
-	
+
 	if search != "" {
 		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
 		args = append(args, "%"+search+"%")
@@ -384,7 +424,7 @@ func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schem
 	// Build WHERE clause for search
 	whereClause := "WHERE deleted_at IS NULL AND is_active = true"
 	args := []interface{}{limit, offset}
-	
+
 	if search != "" {
 		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
 		args = append(args, "%"+search+"%")

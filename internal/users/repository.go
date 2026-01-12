@@ -48,6 +48,40 @@ func (r *Repository) ValidateOrgSchema(schemaName string) error {
 	return nil
 }
 
+// generateEmployeeID generates a sequential employee ID like EMP-0001, EMP-0002, etc.
+func (r *Repository) generateEmployeeID(schemaName string) (string, error) {
+	query := fmt.Sprintf(`
+		SELECT employee_id FROM %s.users 
+		WHERE employee_id IS NOT NULL 
+		ORDER BY employee_id DESC 
+		LIMIT 1
+	`, schemaName)
+
+	var lastEmployeeID sql.NullString
+	err := r.db.QueryRow(query).Scan(&lastEmployeeID)
+
+	if err == sql.ErrNoRows || !lastEmployeeID.Valid {
+		// First employee in this organization
+		return "EMP-0001", nil
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to get last employee ID: %w", err)
+	}
+
+	// Parse the number from EMP-XXXX format
+	var currentNum int
+	_, err = fmt.Sscanf(lastEmployeeID.String, "EMP-%d", &currentNum)
+	if err != nil {
+		// If parsing fails, start from 1
+		return "EMP-0001", nil
+	}
+
+	// Increment and format with leading zeros
+	nextNum := currentNum + 1
+	return fmt.Sprintf("EMP-%04d", nextNum), nil
+}
+
 func (r *Repository) Create(user *User) error {
 	if err := r.ValidateOrgSchema(user.OrgSchemaName); err != nil {
 		return err
@@ -57,12 +91,19 @@ func (r *Repository) Create(user *User) error {
 	user.CreatedAt = time.Now()
 	user.IsActive = true // Default to active when creating
 
+	// Generate employee ID
+	employeeID, err := r.generateEmployeeID(user.OrgSchemaName)
+	if err != nil {
+		return fmt.Errorf("failed to generate employee ID: %w", err)
+	}
+	user.EmployeeID = employeeID
+
 	query := fmt.Sprintf(`
 		INSERT INTO %s.users (id, keycloak_user_id, employee_id, email, first_name, last_name, phone_number, role, is_active, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, user.OrgSchemaName)
 
-	_, err := r.db.Exec(query,
+	_, execErr := r.db.Exec(query,
 		user.ID,
 		user.KeycloakUserID,
 		user.EmployeeID,
@@ -75,8 +116,8 @@ func (r *Repository) Create(user *User) error {
 		user.CreatedAt,
 	)
 
-	if err != nil {
-		return fmt.Errorf("failed to create user in database: %w", err)
+	if execErr != nil {
+		return fmt.Errorf("failed to create user in database: %w", execErr)
 	}
 
 	log.Printf("Created user in database: %s %s (schema: %s)", user.FirstName, user.LastName, user.OrgSchemaName)
@@ -418,11 +459,11 @@ func (r *Repository) ListActiveUsersByRoleWithPagination(schemaName string, role
 	searchClause := ""
 	countArgs := []interface{}{role}
 	queryArgs := []interface{}{role, limit, offset}
-	
+
 	if search != "" {
 		searchClause = ` AND (first_name ILIKE $2 OR last_name ILIKE $2 OR email ILIKE $2)`
 		countArgs = append(countArgs, "%"+search+"%")
-		queryArgs = []interface{}{role, "%"+search+"%", limit, offset}
+		queryArgs = []interface{}{role, "%" + search + "%", limit, offset}
 	}
 
 	// First, get total count of active users with specific role
