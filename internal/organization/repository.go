@@ -397,11 +397,11 @@ func (r *Repository) DeleteOrganization(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to get organization for deletion: %w", err)
 	}
 
-	// Soft delete: Set deleted_at timestamp and update status
+	// Soft delete: Set deleted_at timestamp and update status to inactive
 	query := `
 		UPDATE wailsalutem.organizations
 		SET deleted_at = $1,
-		    status = 'deleted',
+		    status = 'inactive',
 		    updated_at = $1
 		WHERE id = $2 AND deleted_at IS NULL
 	`
