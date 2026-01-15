@@ -4,40 +4,64 @@ This document describes the testing strategy and how to run tests for the organi
 
 ## Test Suites
 
-### ✅ Phase 1: Authentication & Authorization Tests (COMPLETED)
+### Phase 1: Authentication & Authorization Tests (COMPLETED)
 
 **Location:** `internal/auth/*_test.go`
 
 **Coverage:** 22.6% overall, **100% coverage for critical components:**
-- ✅ Middleware (100%)
-- ✅ JWT Verification (91.4%)
-- ✅ Permission System (100%)
-- ✅ Permissions Loading (100%)
+- Middleware (100%)
+- JWT Verification (91.4%)
+- Permission System (100%)
+- Permissions Loading (100%)
 
 **Test Files:**
 1. `middleware_test.go` - 16 test cases
 2. `jwt_verify_test.go` - 8 test cases
 3. `permissions_test.go` - 6 test cases
 
-**Total:** 30 test cases, all passing ✅
+**Total:** 30 test cases, all passing
+
+### Phase 2: Organization Service Tests (COMPLETED)
+
+**Location:** `internal/organization/*_test.go`
+
+**Coverage:** 15.9% overall, **85-100% coverage for service layer:**
+- CreateOrganization (100%)
+- ListOrganizations (90%)
+- ListOrganizationsWithPagination (85.7%)
+- GetOrganization (90.9%)
+- UpdateOrganization (90.9%)
+- DeleteOrganization (100%)
+
+**Test Files:**
+1. `service_test.go` - 17 test cases
+2. `repository_interface.go` - interface for testability
+
+**Total:** 17 test cases, all passing
 
 ## Running Tests
 
 ### Run All Tests
 ```bash
-CGO_ENABLED=0 go test -v ./internal/auth/...
+CGO_ENABLED=0 go test -v ./...
 ```
 
-### Run Specific Test Suite
+### Run Specific Test Suites
 ```bash
-# Middleware tests
+# Authentication tests
+CGO_ENABLED=0 go test -v ./internal/auth/...
+
+# Organization service tests
+CGO_ENABLED=0 go test -v ./internal/organization/...
+
+# Middleware tests only
 CGO_ENABLED=0 go test -v ./internal/auth/... -run TestMiddleware
 
-# JWT verification tests
+# JWT verification tests only
 CGO_ENABLED=0 go test -v ./internal/auth/... -run TestVerifier
 
-# Permission tests
-CGO_ENABLED=0 go test -v ./internal/auth/... -run TestLoadPermissions
+# Organization service tests only
+CGO_ENABLED=0 go test -v ./internal/organization/... -run TestCreateOrganization
 ```
 
 ### Generate Coverage Report
@@ -103,8 +127,8 @@ go tool cover -html=coverage.out
 
 The following test suites need to be implemented:
 
-### Phase 2: Service Layer Tests (PRIORITY)
-- [ ] `internal/organization/service_test.go`
+### Phase 2: Service Layer Tests (IN PROGRESS)
+- [x] `internal/organization/service_test.go`
 - [ ] `internal/users/service_test.go`
 - [ ] `internal/patient/service_test.go`
 
@@ -132,11 +156,13 @@ The following test suites need to be implemented:
 - **Critical paths:** 90%+ coverage (auth, multi-tenancy, authorization)
 
 ### Current Status
-- ✅ **Authentication layer:** 100% coverage (critical)
-- ✅ **Authorization logic:** 100% coverage (critical)
-- ⏳ **Service layer:** 0% coverage (next priority)
-- ⏳ **Repository layer:** 0% coverage
-- ⏳ **Handler layer:** 0% coverage
+- **Authentication layer:** 100% coverage (critical)
+- **Authorization logic:** 100% coverage (critical)
+- **Organization service:** 85-100% coverage (completed)
+- **Users service:** 0% coverage (in progress)
+- **Patient service:** 0% coverage (pending)
+- **Repository layer:** 0% coverage
+- **Handler layer:** 0% coverage
 
 ### Test Naming Convention
 - Test files: `*_test.go`
