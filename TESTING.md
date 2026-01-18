@@ -2,42 +2,123 @@
 
 This document describes the testing strategy and how to run tests for the organization-service.
 
+## Quick Summary
+
+**Total Test Cases:** 140 (131 unit + 9 integration)
+**All Tests:** PASSING
+**Test Files:** 14
+**Commits:** 22
+
+**Coverage by Layer:**
+- Authentication: 100% (critical paths)
+- Authorization: 100% (critical paths)
+- Service Layer: 40-100%
+- Handler Layer: 47-100% (all modules completed)
+- Repository Layer: Organization tested with real database
+
 ## Test Suites
 
-### ✅ Phase 1: Authentication & Authorization Tests (COMPLETED)
+### Phase 1: Authentication & Authorization Tests (COMPLETED)
 
 **Location:** `internal/auth/*_test.go`
 
 **Coverage:** 22.6% overall, **100% coverage for critical components:**
-- ✅ Middleware (100%)
-- ✅ JWT Verification (91.4%)
-- ✅ Permission System (100%)
-- ✅ Permissions Loading (100%)
+- Middleware (100%)
+- JWT Verification (91.4%)
+- Permission System (100%)
+- Permissions Loading (100%)
 
 **Test Files:**
 1. `middleware_test.go` - 16 test cases
 2. `jwt_verify_test.go` - 8 test cases
 3. `permissions_test.go` - 6 test cases
 
-**Total:** 30 test cases, all passing ✅
+**Total:** 30 test cases, all passing
+
+### Phase 2: Organization Service Tests (COMPLETED)
+
+**Location:** `internal/organization/*_test.go`
+
+**Coverage:** 32.3% overall
+- **Service layer:** 85-100% coverage
+- **Handler layer:** 63-100% coverage
+
+**Test Files:**
+1. `service_test.go` - 17 test cases (service layer)
+2. `handler_test.go` - 14 test cases (HTTP layer)
+3. `repository_interface.go` - interface for testability
+4. `service_interface.go` - interface for handler testing
+
+**Total:** 31 test cases, all passing
+
+### Phase 3: Users Service Tests (COMPLETED)
+
+**Location:** `internal/users/*_test.go`
+
+**Coverage:** 24.7% overall
+- **Service layer:** 40-75% coverage
+
+**Test Files:**
+1. `service_test.go` - 20 test cases
+2. `repository_interface.go` - interface for testability
+3. `keycloak_interface.go` - interface for Keycloak mocking
+
+**Total:** 20 test cases, all passing
+
+### Phase 3: Patient Service Tests (COMPLETED)
+
+**Location:** `internal/patient/*_test.go`
+
+**Coverage:** 28.4% overall
+- **Service layer:** 73-100% coverage
+- **Handler layer:** 47-78% coverage
+
+**Test Files:**
+1. `service_test.go` - 13 test cases (service layer)
+2. `handler_test.go` - 15 test cases (HTTP layer)
+3. `repository_interface.go` - interface for testability
+4. `keycloak_interface.go` - interface for Keycloak mocking
+5. `service_interface.go` - interface for handler testing
+6. `schema_lookup_adapter.go` - adapter for DB schema lookups
+
+**Total:** 28 test cases, all passing
+
+### Phase 4: Users Handler Tests (COMPLETED)
+
+**Location:** `internal/users/*_test.go`
+
+**Coverage:** 38.0% overall (handler layer)
+- **Handler layer:** 47-90% coverage
+
+**Test Files:**
+1. `handler_test.go` - 22 test cases (HTTP layer)
+2. `service_interface.go` - interface for handler testing
+
+**Total:** 22 test cases, all passing
 
 ## Running Tests
 
 ### Run All Tests
 ```bash
-CGO_ENABLED=0 go test -v ./internal/auth/...
+CGO_ENABLED=0 go test -v ./...
 ```
 
-### Run Specific Test Suite
+### Run Specific Test Suites
 ```bash
-# Middleware tests
+# Authentication tests
+CGO_ENABLED=0 go test -v ./internal/auth/...
+
+# Organization service tests
+CGO_ENABLED=0 go test -v ./internal/organization/...
+
+# Middleware tests only
 CGO_ENABLED=0 go test -v ./internal/auth/... -run TestMiddleware
 
-# JWT verification tests
+# JWT verification tests only
 CGO_ENABLED=0 go test -v ./internal/auth/... -run TestVerifier
 
-# Permission tests
-CGO_ENABLED=0 go test -v ./internal/auth/... -run TestLoadPermissions
+# Organization service tests only
+CGO_ENABLED=0 go test -v ./internal/organization/... -run TestCreateOrganization
 ```
 
 ### Generate Coverage Report
@@ -103,26 +184,20 @@ go tool cover -html=coverage.out
 
 The following test suites need to be implemented:
 
-### Phase 2: Service Layer Tests (PRIORITY)
-- [ ] `internal/organization/service_test.go`
-- [ ] `internal/users/service_test.go`
-- [ ] `internal/patient/service_test.go`
-
-### Phase 3: Repository Layer Tests
+### Phase 5: Repository Layer Tests (DATABASE REQUIRED)
 - [ ] `internal/organization/repository_test.go`
 - [ ] `internal/users/repository_test.go`
 - [ ] `internal/patient/repository_test.go`
 
-### Phase 4: Handler/API Tests
-- [ ] `internal/organization/handler_test.go`
-- [ ] `internal/users/handler_test.go`
-- [ ] `internal/patient/handler_test.go`
+These tests require a running PostgreSQL database with multi-tenant schema setup.
 
-### Phase 5: Integration Tests
-- [ ] Database integration tests
-- [ ] Keycloak integration tests
-- [ ] RabbitMQ integration tests
-- [ ] End-to-end API tests
+### Phase 6: Integration Tests (INFRASTRUCTURE REQUIRED)
+- [ ] Database integration tests (requires PostgreSQL)
+- [ ] Keycloak integration tests (requires Keycloak instance)
+- [ ] RabbitMQ integration tests (requires RabbitMQ)
+- [ ] End-to-end API tests (requires full stack)
+
+These tests require the full infrastructure stack running.
 
 ## Testing Standards
 
@@ -132,11 +207,54 @@ The following test suites need to be implemented:
 - **Critical paths:** 90%+ coverage (auth, multi-tenancy, authorization)
 
 ### Current Status
-- ✅ **Authentication layer:** 100% coverage (critical)
-- ✅ **Authorization logic:** 100% coverage (critical)
-- ⏳ **Service layer:** 0% coverage (next priority)
-- ⏳ **Repository layer:** 0% coverage
-- ⏳ **Handler layer:** 0% coverage
+- **Authentication layer:** 100% coverage (critical)
+- **Authorization logic:** 100% coverage (critical)
+- **Organization service:** 85-100% coverage (completed)
+- **Organization handler:** 63-100% coverage (completed)
+- **Users service:** 40-75% coverage (completed)
+- **Users handler:** 47-90% coverage (completed)
+- **Patient service:** 73-100% coverage (completed)
+- **Patient handler:** 47-78% coverage (completed)
+- **Repository layer:** 0% coverage (requires database)
+
+### Phase 4 Complete
+All handler tests for organization, users, and patient modules are now complete.
+Total of 131 unit test cases covering authentication, authorization, service logic, and HTTP handlers.
+
+### Phase 5: Integration Tests (IN PROGRESS)
+
+**Location:** `internal/organization/repository_integration_test.go`
+
+**Coverage:** Organization repository with real PostgreSQL
+
+**Test Files:**
+1. `repository_integration_test.go` - 9 integration tests
+2. `testutil/database.go` - Test helpers
+3. `scripts/setup-test-db.sh` - Test database setup
+
+**Total:** 9 integration tests, all passing
+
+**What's tested:**
+- CreateOrganization with real database
+- Multi-tenant schema creation
+- GetOrganization by ID
+- ListOrganizations with pagination
+- UpdateOrganization
+- DeleteOrganization (soft delete)
+- Database constraints and transactions
+- Schema isolation
+
+**Running integration tests:**
+```bash
+# Setup test database (one-time)
+make setup-test-db
+
+# Run integration tests
+make test-integration
+
+# Run all tests (unit + integration)
+make test-all
+```
 
 ### Test Naming Convention
 - Test files: `*_test.go`

@@ -1,13 +1,16 @@
-.PHONY: test test-auth test-coverage test-verbose clean help
+.PHONY: test test-auth test-coverage test-verbose clean help test-integration test-all setup-test-db
 
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  make test          - Run all tests"
-	@echo "  make test-auth     - Run authentication tests only"
-	@echo "  make test-coverage - Run tests with coverage report"
-	@echo "  make test-verbose  - Run tests with verbose output"
-	@echo "  make clean         - Clean test cache and coverage files"
+	@echo "  make test              - Run unit tests only"
+	@echo "  make test-auth         - Run authentication tests only"
+	@echo "  make test-integration  - Run integration tests (requires PostgreSQL)"
+	@echo "  make test-all          - Run all tests (unit + integration)"
+	@echo "  make test-coverage     - Run tests with coverage report"
+	@echo "  make test-verbose      - Run tests with verbose output"
+	@echo "  make setup-test-db     - Setup test database (run once)"
+	@echo "  make clean             - Clean test cache and coverage files"
 
 # Run all tests
 test:
@@ -53,3 +56,21 @@ clean:
 test-specific:
 	@echo "Running test: $(TEST)"
 	CGO_ENABLED=0 go test -v ./internal/auth/... -run $(TEST)
+
+# Setup test database (run once)
+setup-test-db:
+	@echo "Setting up test database..."
+	@./scripts/setup-test-db.sh
+
+# Run integration tests only
+test-integration:
+	@echo "Running integration tests..."
+	@echo "Make sure PostgreSQL is running: docker ps | grep postgres"
+	@CGO_ENABLED=0 go test -tags=integration -v ./...
+
+# Run all tests (unit + integration)
+test-all:
+	@echo "Running all tests (unit + integration)..."
+	@make test
+	@make test-integration
+	@echo "✅ All tests completed!"
