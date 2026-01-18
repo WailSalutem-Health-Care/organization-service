@@ -10,11 +10,11 @@ import (
 )
 
 type Service struct {
-	repo          *Repository
-	keycloakAdmin *auth.KeycloakAdminClient
+	repo          RepositoryInterface
+	keycloakAdmin KeycloakAdminInterface
 }
 
-func NewService(repo *Repository, keycloakAdmin *auth.KeycloakAdminClient) *Service {
+func NewService(repo RepositoryInterface, keycloakAdmin KeycloakAdminInterface) *Service {
 	return &Service{
 		repo:          repo,
 		keycloakAdmin: keycloakAdmin,

@@ -15,10 +15,10 @@ import (
 
 type Repository struct {
 	db        *sql.DB
-	publisher *messaging.Publisher
+	publisher messaging.PublisherInterface
 }
 
-func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
+func NewRepository(db *sql.DB, publisher messaging.PublisherInterface) *Repository {
 	return &Repository{
 		db:        db,
 		publisher: publisher,
@@ -298,10 +298,12 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error) {
 	// Build WHERE clause for search
 	whereClause := "WHERE deleted_at IS NULL"
+	countWhereClause := "WHERE deleted_at IS NULL"
 	args := []interface{}{limit, offset}
 
 	if search != "" {
 		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		countWhereClause += ` AND (first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1)`
 		args = append(args, "%"+search+"%")
 	}
 
@@ -311,7 +313,7 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 		SELECT COUNT(*) 
 		FROM %s.patients
 		%s
-	`, pq.QuoteIdentifier(schemaName), whereClause)
+	`, pq.QuoteIdentifier(schemaName), countWhereClause)
 
 	if search != "" {
 		err := r.db.QueryRowContext(ctx, countQuery, "%"+search+"%").Scan(&totalCount)
@@ -355,9 +357,11 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 		var careplanType sql.NullString
 		var careplanFrequency sql.NullString
 		var updatedAt sql.NullTime
+		var patientIDStr sql.NullString
 
 		err := rows.Scan(
 			&patient.ID,
+			&patientIDStr,
 			&patient.KeycloakUserID,
 			&patient.FirstName,
 			&patient.LastName,
@@ -378,6 +382,9 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 			return nil, 0, fmt.Errorf("failed to scan patient: %w", err)
 		}
 
+		if patientIDStr.Valid {
+			patient.PatientID = patientIDStr.String
+		}
 		if dob.Valid {
 			patient.DateOfBirth = &dob.String
 		}
@@ -423,10 +430,12 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error) {
 	// Build WHERE clause for search
 	whereClause := "WHERE deleted_at IS NULL AND is_active = true"
+	countWhereClause := "WHERE deleted_at IS NULL AND is_active = true"
 	args := []interface{}{limit, offset}
 
 	if search != "" {
 		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		countWhereClause += ` AND (first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1)`
 		args = append(args, "%"+search+"%")
 	}
 
@@ -436,7 +445,7 @@ func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schem
 		SELECT COUNT(*) 
 		FROM %s.patients
 		%s
-	`, pq.QuoteIdentifier(schemaName), whereClause)
+	`, pq.QuoteIdentifier(schemaName), countWhereClause)
 
 	if search != "" {
 		err := r.db.QueryRowContext(ctx, countQuery, "%"+search+"%").Scan(&totalCount)
@@ -480,9 +489,11 @@ func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schem
 		var careplanType sql.NullString
 		var careplanFrequency sql.NullString
 		var updatedAt sql.NullTime
+		var patientIDStr sql.NullString
 
 		err := rows.Scan(
 			&patient.ID,
+			&patientIDStr,
 			&patient.KeycloakUserID,
 			&patient.FirstName,
 			&patient.LastName,
@@ -503,6 +514,9 @@ func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schem
 			return nil, 0, fmt.Errorf("failed to scan patient: %w", err)
 		}
 
+		if patientIDStr.Valid {
+			patient.PatientID = patientIDStr.String
+		}
 		if dob.Valid {
 			patient.DateOfBirth = &dob.String
 		}
@@ -711,7 +725,7 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 		UPDATE %s.patients
 		SET %s
 		WHERE id = $%d AND deleted_at IS NULL
-		RETURNING id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+		RETURNING id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
 				  emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
 				  careplan_frequency, is_active, created_at, updated_at
 	`, pq.QuoteIdentifier(schemaName), strings.Join(updates, ", "), argIndex)
@@ -727,9 +741,11 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	var careplanType sql.NullString
 	var careplanFrequency sql.NullString
 	var updatedAt sql.NullTime
+	var patientIDStr sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&patient.ID,
+		&patientIDStr,
 		&patient.KeycloakUserID,
 		&patient.FirstName,
 		&patient.LastName,
@@ -755,6 +771,9 @@ func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id st
 	}
 
 	// Handle nullable fields
+	if patientIDStr.Valid {
+		patient.PatientID = patientIDStr.String
+	}
 	if email.Valid {
 		patient.Email = email.String
 	}
