@@ -357,9 +357,11 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int, se
 
 	// Build WHERE clause for search
 	whereClause := ""
+	countWhereClause := ""
 	args := []interface{}{limit, offset}
 	if search != "" {
 		whereClause = `WHERE (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		countWhereClause = `WHERE (first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1)`
 		args = append(args, "%"+search+"%")
 	}
 
@@ -369,7 +371,7 @@ func (r *Repository) ListWithPagination(schemaName string, limit, offset int, se
 		SELECT COUNT(*) 
 		FROM %s.users
 		%s
-	`, schemaName, whereClause)
+	`, schemaName, countWhereClause)
 
 	if search != "" {
 		err := r.db.QueryRow(countQuery, "%"+search+"%").Scan(&totalCount)
