@@ -12,10 +12,10 @@ import (
 
 type Repository struct {
 	db        *sql.DB
-	publisher *messaging.Publisher
+	publisher messaging.PublisherInterface
 }
 
-func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
+func NewRepository(db *sql.DB, publisher messaging.PublisherInterface) *Repository {
 	return &Repository{
 		db:        db,
 		publisher: publisher,
