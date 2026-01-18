@@ -2,6 +2,19 @@
 
 This document describes the testing strategy and how to run tests for the organization-service.
 
+## Quick Summary
+
+**Total Test Cases:** 94
+**All Tests:** PASSING
+**Test Files:** 10
+**Commits:** 13
+
+**Coverage by Layer:**
+- Authentication: 100% (critical paths)
+- Authorization: 100% (critical paths)
+- Service Layer: 40-100%
+- Handler Layer: 63-100% (organization completed)
+
 ## Test Suites
 
 ### Phase 1: Authentication & Authorization Tests (COMPLETED)
@@ -25,19 +38,45 @@ This document describes the testing strategy and how to run tests for the organi
 
 **Location:** `internal/organization/*_test.go`
 
-**Coverage:** 15.9% overall, **85-100% coverage for service layer:**
-- CreateOrganization (100%)
-- ListOrganizations (90%)
-- ListOrganizationsWithPagination (85.7%)
-- GetOrganization (90.9%)
-- UpdateOrganization (90.9%)
-- DeleteOrganization (100%)
+**Coverage:** 32.3% overall
+- **Service layer:** 85-100% coverage
+- **Handler layer:** 63-100% coverage
 
 **Test Files:**
-1. `service_test.go` - 17 test cases
-2. `repository_interface.go` - interface for testability
+1. `service_test.go` - 17 test cases (service layer)
+2. `handler_test.go` - 14 test cases (HTTP layer)
+3. `repository_interface.go` - interface for testability
+4. `service_interface.go` - interface for handler testing
 
-**Total:** 17 test cases, all passing
+**Total:** 31 test cases, all passing
+
+### Phase 3: Users Service Tests (COMPLETED)
+
+**Location:** `internal/users/*_test.go`
+
+**Coverage:** 24.7% overall
+- **Service layer:** 40-75% coverage
+
+**Test Files:**
+1. `service_test.go` - 20 test cases
+2. `repository_interface.go` - interface for testability
+3. `keycloak_interface.go` - interface for Keycloak mocking
+
+**Total:** 20 test cases, all passing
+
+### Phase 3: Patient Service Tests (COMPLETED)
+
+**Location:** `internal/patient/*_test.go`
+
+**Coverage:** 8.7% overall
+- **Service layer:** 73-100% coverage
+
+**Test Files:**
+1. `service_test.go` - 13 test cases
+2. `repository_interface.go` - interface for testability
+3. `keycloak_interface.go` - interface for Keycloak mocking
+
+**Total:** 13 test cases, all passing
 
 ## Running Tests
 
@@ -127,26 +166,21 @@ go tool cover -html=coverage.out
 
 The following test suites need to be implemented:
 
-### Phase 2: Service Layer Tests (IN PROGRESS)
-- [x] `internal/organization/service_test.go`
-- [ ] `internal/users/service_test.go`
-- [ ] `internal/patient/service_test.go`
+### Phase 4: Remaining Handler Tests (IN PROGRESS)
+- [x] `internal/organization/handler_test.go`
+- [ ] `internal/users/handler_test.go`
+- [ ] `internal/patient/handler_test.go`
 
-### Phase 3: Repository Layer Tests
+### Phase 5: Repository Layer Tests (DATABASE REQUIRED)
 - [ ] `internal/organization/repository_test.go`
 - [ ] `internal/users/repository_test.go`
 - [ ] `internal/patient/repository_test.go`
 
-### Phase 4: Handler/API Tests
-- [ ] `internal/organization/handler_test.go`
-- [ ] `internal/users/handler_test.go`
-- [ ] `internal/patient/handler_test.go`
-
-### Phase 5: Integration Tests
-- [ ] Database integration tests
-- [ ] Keycloak integration tests
-- [ ] RabbitMQ integration tests
-- [ ] End-to-end API tests
+### Phase 6: Integration Tests (INFRASTRUCTURE REQUIRED)
+- [ ] Database integration tests (requires PostgreSQL)
+- [ ] Keycloak integration tests (requires Keycloak instance)
+- [ ] RabbitMQ integration tests (requires RabbitMQ)
+- [ ] End-to-end API tests (requires full stack)
 
 ## Testing Standards
 
@@ -159,10 +193,12 @@ The following test suites need to be implemented:
 - **Authentication layer:** 100% coverage (critical)
 - **Authorization logic:** 100% coverage (critical)
 - **Organization service:** 85-100% coverage (completed)
-- **Users service:** 0% coverage (in progress)
-- **Patient service:** 0% coverage (pending)
-- **Repository layer:** 0% coverage
-- **Handler layer:** 0% coverage
+- **Organization handler:** 63-100% coverage (completed)
+- **Users service:** 40-75% coverage (completed)
+- **Patient service:** 73-100% coverage (completed)
+- **Users handler:** 0% coverage (next)
+- **Patient handler:** 0% coverage (next)
+- **Repository layer:** 0% coverage (requires database)
 
 ### Test Naming Convention
 - Test files: `*_test.go`
