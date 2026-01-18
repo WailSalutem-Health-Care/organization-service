@@ -4,16 +4,16 @@ This document describes the testing strategy and how to run tests for the organi
 
 ## Quick Summary
 
-**Total Test Cases:** 94
+**Total Test Cases:** 131
 **All Tests:** PASSING
-**Test Files:** 10
-**Commits:** 13
+**Test Files:** 13
+**Commits:** 18
 
 **Coverage by Layer:**
 - Authentication: 100% (critical paths)
 - Authorization: 100% (critical paths)
 - Service Layer: 40-100%
-- Handler Layer: 63-100% (organization completed)
+- Handler Layer: 47-100% (all modules completed)
 
 ## Test Suites
 
@@ -68,15 +68,32 @@ This document describes the testing strategy and how to run tests for the organi
 
 **Location:** `internal/patient/*_test.go`
 
-**Coverage:** 8.7% overall
+**Coverage:** 28.4% overall
 - **Service layer:** 73-100% coverage
+- **Handler layer:** 47-78% coverage
 
 **Test Files:**
-1. `service_test.go` - 13 test cases
-2. `repository_interface.go` - interface for testability
-3. `keycloak_interface.go` - interface for Keycloak mocking
+1. `service_test.go` - 13 test cases (service layer)
+2. `handler_test.go` - 15 test cases (HTTP layer)
+3. `repository_interface.go` - interface for testability
+4. `keycloak_interface.go` - interface for Keycloak mocking
+5. `service_interface.go` - interface for handler testing
+6. `schema_lookup_adapter.go` - adapter for DB schema lookups
 
-**Total:** 13 test cases, all passing
+**Total:** 28 test cases, all passing
+
+### Phase 4: Users Handler Tests (COMPLETED)
+
+**Location:** `internal/users/*_test.go`
+
+**Coverage:** 38.0% overall (handler layer)
+- **Handler layer:** 47-90% coverage
+
+**Test Files:**
+1. `handler_test.go` - 22 test cases (HTTP layer)
+2. `service_interface.go` - interface for handler testing
+
+**Total:** 22 test cases, all passing
 
 ## Running Tests
 
@@ -166,21 +183,20 @@ go tool cover -html=coverage.out
 
 The following test suites need to be implemented:
 
-### Phase 4: Remaining Handler Tests (IN PROGRESS)
-- [x] `internal/organization/handler_test.go`
-- [ ] `internal/users/handler_test.go`
-- [ ] `internal/patient/handler_test.go`
-
 ### Phase 5: Repository Layer Tests (DATABASE REQUIRED)
 - [ ] `internal/organization/repository_test.go`
 - [ ] `internal/users/repository_test.go`
 - [ ] `internal/patient/repository_test.go`
+
+These tests require a running PostgreSQL database with multi-tenant schema setup.
 
 ### Phase 6: Integration Tests (INFRASTRUCTURE REQUIRED)
 - [ ] Database integration tests (requires PostgreSQL)
 - [ ] Keycloak integration tests (requires Keycloak instance)
 - [ ] RabbitMQ integration tests (requires RabbitMQ)
 - [ ] End-to-end API tests (requires full stack)
+
+These tests require the full infrastructure stack running.
 
 ## Testing Standards
 
@@ -195,10 +211,14 @@ The following test suites need to be implemented:
 - **Organization service:** 85-100% coverage (completed)
 - **Organization handler:** 63-100% coverage (completed)
 - **Users service:** 40-75% coverage (completed)
+- **Users handler:** 47-90% coverage (completed)
 - **Patient service:** 73-100% coverage (completed)
-- **Users handler:** 0% coverage (next)
-- **Patient handler:** 0% coverage (next)
+- **Patient handler:** 47-78% coverage (completed)
 - **Repository layer:** 0% coverage (requires database)
+
+### Phase 4 Complete
+All handler tests for organization, users, and patient modules are now complete.
+Total of 131 test cases covering authentication, authorization, service logic, and HTTP handlers.
 
 ### Test Naming Convention
 - Test files: `*_test.go`
