@@ -14,27 +14,49 @@ import (
 )
 
 // SetupRouter initializes all routes for the application
-func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher *messaging.Publisher) *mux.Router {
-	// Initialize organization components
-	orgRepo := organization.NewRepository(db, publisher)
-	orgService := organization.NewService(orgRepo)
-	orgHandler := organization.NewHandler(orgService)
-
+func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface) *mux.Router {
 	// Initialize Keycloak admin client
 	keycloakAdmin, err := auth.NewKeycloakAdminClient()
 	if err != nil {
 		log.Fatalf("failed to initialize Keycloak admin client: %v", err)
 	}
 
+	return SetupRouterWithKeycloak(db, verifier, perms, publisher, keycloakAdmin)
+}
+
+// SetupRouterWithKeycloak initializes all routes with a provided Keycloak client
+// This is useful for testing where you can pass a mock Keycloak client
+func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface, keycloakAdmin interface{}) *mux.Router {
+	// Initialize organization components
+	orgRepo := organization.NewRepository(db, publisher)
+	orgService := organization.NewService(orgRepo)
+	orgHandler := organization.NewHandler(orgService)
+
+	// Cast keycloakAdmin to the appropriate interface types
+	// For users and patients, they use their own KeycloakAdminInterface
+	var userKeycloak users.KeycloakAdminInterface
+	var patientKeycloak patient.KeycloakAdminInterface
+	
+	if keycloakAdmin != nil {
+		// Try to cast to users.KeycloakAdminInterface
+		if kc, ok := keycloakAdmin.(users.KeycloakAdminInterface); ok {
+			userKeycloak = kc
+		}
+		// Try to cast to patient.KeycloakAdminInterface
+		if kc, ok := keycloakAdmin.(patient.KeycloakAdminInterface); ok {
+			patientKeycloak = kc
+		}
+	}
+
 	// Initialize patient components
 	patientRepo := patient.NewRepository(db, publisher)
-	patientService := patient.NewService(patientRepo, keycloakAdmin)
+	patientService := patient.NewService(patientRepo, patientKeycloak)
 	patientSchemaLookup := patient.NewDBSchemaLookup(db)
 	patientHandler := patient.NewHandler(patientService, patientSchemaLookup)
 
 	// Initialize user components
 	userRepo := users.NewRepository(db, publisher)
-	userService := users.NewService(userRepo, keycloakAdmin)
+	userService := users.NewService(userRepo, userKeycloak)
 	userHandler := users.NewHandler(userService)
 
 	r := mux.NewRouter()
