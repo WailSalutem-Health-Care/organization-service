@@ -4,16 +4,17 @@ This document describes the testing strategy and how to run tests for the organi
 
 ## Quick Summary
 
-**Total Test Cases:** 131
+**Total Test Cases:** 140 (131 unit + 9 integration)
 **All Tests:** PASSING
-**Test Files:** 13
-**Commits:** 18
+**Test Files:** 14
+**Commits:** 22
 
 **Coverage by Layer:**
 - Authentication: 100% (critical paths)
 - Authorization: 100% (critical paths)
 - Service Layer: 40-100%
 - Handler Layer: 47-100% (all modules completed)
+- Repository Layer: Organization tested with real database
 
 ## Test Suites
 
@@ -218,7 +219,42 @@ These tests require the full infrastructure stack running.
 
 ### Phase 4 Complete
 All handler tests for organization, users, and patient modules are now complete.
-Total of 131 test cases covering authentication, authorization, service logic, and HTTP handlers.
+Total of 131 unit test cases covering authentication, authorization, service logic, and HTTP handlers.
+
+### Phase 5: Integration Tests (IN PROGRESS)
+
+**Location:** `internal/organization/repository_integration_test.go`
+
+**Coverage:** Organization repository with real PostgreSQL
+
+**Test Files:**
+1. `repository_integration_test.go` - 9 integration tests
+2. `testutil/database.go` - Test helpers
+3. `scripts/setup-test-db.sh` - Test database setup
+
+**Total:** 9 integration tests, all passing
+
+**What's tested:**
+- CreateOrganization with real database
+- Multi-tenant schema creation
+- GetOrganization by ID
+- ListOrganizations with pagination
+- UpdateOrganization
+- DeleteOrganization (soft delete)
+- Database constraints and transactions
+- Schema isolation
+
+**Running integration tests:**
+```bash
+# Setup test database (one-time)
+make setup-test-db
+
+# Run integration tests
+make test-integration
+
+# Run all tests (unit + integration)
+make test-all
+```
 
 ### Test Naming Convention
 - Test files: `*_test.go`
