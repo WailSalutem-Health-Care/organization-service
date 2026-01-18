@@ -29,7 +29,8 @@ func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string,
 	// Initialize patient components
 	patientRepo := patient.NewRepository(db, publisher)
 	patientService := patient.NewService(patientRepo, keycloakAdmin)
-	patientHandler := patient.NewHandler(patientService, db)
+	patientSchemaLookup := patient.NewDBSchemaLookup(db)
+	patientHandler := patient.NewHandler(patientService, patientSchemaLookup)
 
 	// Initialize user components
 	userRepo := users.NewRepository(db, publisher)
