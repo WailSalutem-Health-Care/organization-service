@@ -50,6 +50,9 @@ roles:
 
   MUNICIPALITY:
     - care-session:report
+    - organization:view
+
 
   INSURER:
+    - organization:view
     - care-session:report
