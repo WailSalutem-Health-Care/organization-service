@@ -35,9 +35,11 @@ roles:
 
   CAREGIVER:
     - patient:view
+    - user:view
 
     - nfc:check-in
     - nfc:check-out
+
     - care-session:create
     - care-session:update
     - care-session:read
@@ -51,5 +53,16 @@ roles:
   MUNICIPALITY:
     - care-session:report
 
+    - organization:view
+
+    - patient:view
+    - user:view
+
+
   INSURER:
+    - organization:view
+
     - care-session:report
+
+    - patient:view
+    - user:view

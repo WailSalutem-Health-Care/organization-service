@@ -1,25 +1,23 @@
 package patient
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
-	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
-	service *Service
-	db      *sql.DB
+	service      ServiceInterface
+	schemaLookup SchemaLookup
 }
 
-func NewHandler(service *Service, db *sql.DB) *Handler {
+func NewHandler(service ServiceInterface, schemaLookup SchemaLookup) *Handler {
 	return &Handler{
-		service: service,
-		db:      db,
+		service:      service,
+		schemaLookup: schemaLookup,
 	}
 }
 
@@ -63,7 +61,7 @@ func (h *Handler) CreatePatient(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		schemaName, err = h.schemaLookup.GetSchemaNameByOrgID(r.Context(), orgID)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
 			return
@@ -142,7 +140,7 @@ func (h *Handler) ListPatients(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		schemaName, err = h.schemaLookup.GetSchemaNameByOrgID(r.Context(), orgID)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
 			return
@@ -204,7 +202,7 @@ func (h *Handler) ListActivePatients(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		schemaName, err = h.schemaLookup.GetSchemaNameByOrgID(r.Context(), orgID)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
 			return
@@ -266,7 +264,7 @@ func (h *Handler) GetPatient(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		schemaName, err = h.schemaLookup.GetSchemaNameByOrgID(r.Context(), orgID)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
 			return
@@ -335,7 +333,7 @@ func (h *Handler) UpdatePatient(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		schemaName, err = h.schemaLookup.GetSchemaNameByOrgID(r.Context(), orgID)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
 			return
@@ -410,7 +408,7 @@ func (h *Handler) DeletePatient(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		schemaName, err = organization.GetSchemaNameByOrgID(r.Context(), h.db, orgID)
+		schemaName, err = h.schemaLookup.GetSchemaNameByOrgID(r.Context(), orgID)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "schema_lookup_failed", "Failed to lookup organization schema: "+err.Error())
 			return

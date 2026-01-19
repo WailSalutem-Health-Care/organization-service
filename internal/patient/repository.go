@@ -15,10 +15,10 @@ import (
 
 type Repository struct {
 	db        *sql.DB
-	publisher *messaging.Publisher
+	publisher messaging.PublisherInterface
 }
 
-func NewRepository(db *sql.DB, publisher *messaging.Publisher) *Repository {
+func NewRepository(db *sql.DB, publisher messaging.PublisherInterface) *Repository {
 	return &Repository{
 		db:        db,
 		publisher: publisher,
@@ -298,10 +298,12 @@ func (r *Repository) ListPatients(ctx context.Context, schemaName string) ([]Pat
 func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error) {
 	// Build WHERE clause for search
 	whereClause := "WHERE deleted_at IS NULL"
+	countWhereClause := "WHERE deleted_at IS NULL"
 	args := []interface{}{limit, offset}
 
 	if search != "" {
 		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		countWhereClause += ` AND (first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1)`
 		args = append(args, "%"+search+"%")
 	}
 
@@ -311,7 +313,7 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 		SELECT COUNT(*) 
 		FROM %s.patients
 		%s
-	`, pq.QuoteIdentifier(schemaName), whereClause)
+	`, pq.QuoteIdentifier(schemaName), countWhereClause)
 
 	if search != "" {
 		err := r.db.QueryRowContext(ctx, countQuery, "%"+search+"%").Scan(&totalCount)
@@ -428,10 +430,12 @@ func (r *Repository) ListPatientsWithPagination(ctx context.Context, schemaName 
 func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error) {
 	// Build WHERE clause for search
 	whereClause := "WHERE deleted_at IS NULL AND is_active = true"
+	countWhereClause := "WHERE deleted_at IS NULL AND is_active = true"
 	args := []interface{}{limit, offset}
 
 	if search != "" {
 		whereClause += ` AND (first_name ILIKE $3 OR last_name ILIKE $3 OR email ILIKE $3)`
+		countWhereClause += ` AND (first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1)`
 		args = append(args, "%"+search+"%")
 	}
 
@@ -441,7 +445,7 @@ func (r *Repository) ListActivePatientsWithPagination(ctx context.Context, schem
 		SELECT COUNT(*) 
 		FROM %s.patients
 		%s
-	`, pq.QuoteIdentifier(schemaName), whereClause)
+	`, pq.QuoteIdentifier(schemaName), countWhereClause)
 
 	if search != "" {
 		err := r.db.QueryRowContext(ctx, countQuery, "%"+search+"%").Scan(&totalCount)
