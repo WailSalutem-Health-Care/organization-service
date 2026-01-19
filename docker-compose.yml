@@ -21,6 +21,15 @@ services:
     container_name: organization-service
     env_file:
       - .env
+    environment:
+      # OpenTelemetry Configuration
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-localhost:4317}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-organization-service}
+      - OTEL_SERVICE_NAMESPACE=${OTEL_SERVICE_NAMESPACE:-wailsalutem}
+      - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-1.0.0}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - OTEL_TRACES_SAMPLER=${OTEL_TRACES_SAMPLER:-always_on}
+      - OTEL_METRICS_EXPORT_INTERVAL=${OTEL_METRICS_EXPORT_INTERVAL:-30s}
     ports:
       - "8080:8080"
     depends_on:
