@@ -10,6 +10,7 @@ import (
 type ServiceInterface interface {
 	CreatePatient(ctx context.Context, schemaName, orgID string, req CreatePatientRequest) (*PatientResponse, error)
 	GetPatient(ctx context.Context, schemaName, id string) (*PatientResponse, error)
+	GetMyPatient(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error)
 	ListPatients(ctx context.Context, schemaName string) ([]PatientResponse, error)
 	ListPatientsWithPagination(ctx context.Context, schemaName string, params pagination.Params) (*PaginatedPatientListResponse, error)
 	ListActivePatientsWithPagination(ctx context.Context, schemaName string, params pagination.Params) (*PaginatedPatientListResponse, error)

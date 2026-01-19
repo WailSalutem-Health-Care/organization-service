@@ -440,6 +440,28 @@ func (s *Service) UpdateUser(userID string, req UpdateUserRequest, principal *au
 	return user, nil
 }
 
+// GetMyProfile retrieves the current user's profile
+func (s *Service) GetMyProfile(principal *auth.Principal) (*User, error) {
+	if principal.OrgID == "" {
+		log.Printf("User token missing organizationID claim - cannot get profile")
+		return nil, fmt.Errorf("user token must contain organizationID claim")
+	}
+
+	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(principal.OrgID)
+	if err != nil {
+		log.Printf("Failed to get schema name for orgId %s: %v", principal.OrgID, err)
+		return nil, ErrInvalidOrgSchema
+	}
+
+	user, err := s.repo.GetByKeycloakID(orgSchemaName, principal.UserID)
+	if err != nil {
+		log.Printf("Failed to get user by Keycloak ID: %v", err)
+		return nil, ErrUserNotFound
+	}
+
+	return user, nil
+}
+
 func (s *Service) UpdateMyProfile(req UpdateUserRequest, principal *auth.Principal) (*User, error) {
 	if principal.OrgID == "" {
 		log.Printf("User token missing organizationID claim - cannot update profile")

@@ -19,6 +19,7 @@ import (
 type mockService struct {
 	createPatientFunc                    func(ctx context.Context, schemaName, orgID string, req CreatePatientRequest) (*PatientResponse, error)
 	getPatientFunc                       func(ctx context.Context, schemaName, id string) (*PatientResponse, error)
+	getMyPatientFunc                     func(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error)
 	listPatientsFunc                     func(ctx context.Context, schemaName string) ([]PatientResponse, error)
 	listPatientsWithPaginationFunc       func(ctx context.Context, schemaName string, params pagination.Params) (*PaginatedPatientListResponse, error)
 	listActivePatientsWithPaginationFunc func(ctx context.Context, schemaName string, params pagination.Params) (*PaginatedPatientListResponse, error)
@@ -36,6 +37,13 @@ func (m *mockService) CreatePatient(ctx context.Context, schemaName, orgID strin
 func (m *mockService) GetPatient(ctx context.Context, schemaName, id string) (*PatientResponse, error) {
 	if m.getPatientFunc != nil {
 		return m.getPatientFunc(ctx, schemaName, id)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockService) GetMyPatient(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error) {
+	if m.getMyPatientFunc != nil {
+		return m.getMyPatientFunc(ctx, schemaName, keycloakUserID)
 	}
 	return nil, errors.New("not implemented")
 }

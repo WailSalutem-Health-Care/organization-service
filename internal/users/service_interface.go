@@ -13,6 +13,7 @@ type ServiceInterface interface {
 	ListUsersWithPagination(principal *auth.Principal, targetOrgID string, params pagination.Params) (*PaginatedUserListResponse, error)
 	ListActiveUsersByRoleWithPagination(principal *auth.Principal, targetOrgID string, role string, params pagination.Params) (*PaginatedUserListResponse, error)
 	UpdateUser(userID string, req UpdateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error)
+	GetMyProfile(principal *auth.Principal) (*User, error)
 	UpdateMyProfile(req UpdateUserRequest, principal *auth.Principal) (*User, error)
 	ResetPassword(userID string, req ResetPasswordRequest, principal *auth.Principal, targetOrgID string) error
 	DeleteUser(userID string, principal *auth.Principal) error

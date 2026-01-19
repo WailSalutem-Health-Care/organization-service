@@ -206,9 +206,23 @@ func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[stri
 
 	r.Handle("/organization/users/me",
 		auth.MiddlewareWithMetrics(verifier, metrics)(
+			http.HandlerFunc(userHandler.GetMyProfile),
+		),
+	).Methods("GET")
+
+	r.Handle("/organization/users/me",
+		auth.MiddlewareWithMetrics(verifier, metrics)(
 			http.HandlerFunc(userHandler.UpdateMyProfile),
 		),
 	).Methods("PATCH")
+
+	r.Handle("/organization/patients/me",
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:view", perms, metrics)(
+				http.HandlerFunc(patientHandler.GetMyPatient),
+			),
+		),
+	).Methods("GET")
 
 	r.Handle("/organization/users/{id}",
 		auth.MiddlewareWithMetrics(verifier, metrics)(
