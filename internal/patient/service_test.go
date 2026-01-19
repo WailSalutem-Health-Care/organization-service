@@ -492,6 +492,7 @@ type mockRepository struct {
 	listPatientsWithPaginationFunc func(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error)
 	listActivePatientsFunc         func(ctx context.Context, schemaName string, limit, offset int, search string) ([]PatientResponse, int, error)
 	getPatientFunc                 func(ctx context.Context, schemaName, id string) (*PatientResponse, error)
+	getByKeycloakIDFunc            func(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error)
 	updatePatientFunc              func(ctx context.Context, schemaName, id string, req UpdatePatientRequest) (*PatientResponse, error)
 	deletePatientFunc              func(ctx context.Context, schemaName, orgID, id string) error
 }
@@ -527,6 +528,13 @@ func (m *mockRepository) ListActivePatientsWithPagination(ctx context.Context, s
 func (m *mockRepository) GetPatient(ctx context.Context, schemaName, id string) (*PatientResponse, error) {
 	if m.getPatientFunc != nil {
 		return m.getPatientFunc(ctx, schemaName, id)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockRepository) GetByKeycloakID(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error) {
+	if m.getByKeycloakIDFunc != nil {
+		return m.getByKeycloakIDFunc(ctx, schemaName, keycloakUserID)
 	}
 	return nil, errors.New("not implemented")
 }
