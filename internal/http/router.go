@@ -9,24 +9,25 @@ import (
 	"github.com/WailSalutem-Health-Care/organization-service/internal/messaging"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/organization"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/patient"
+	"github.com/WailSalutem-Health-Care/organization-service/internal/telemetry"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/users"
 	"github.com/gorilla/mux"
 )
 
 // SetupRouter initializes all routes for the application
-func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface) *mux.Router {
+func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface, metrics *telemetry.Metrics) *mux.Router {
 	// Initialize Keycloak admin client
 	keycloakAdmin, err := auth.NewKeycloakAdminClient()
 	if err != nil {
 		log.Fatalf("failed to initialize Keycloak admin client: %v", err)
 	}
 
-	return SetupRouterWithKeycloak(db, verifier, perms, publisher, keycloakAdmin)
+	return SetupRouterWithKeycloak(db, verifier, perms, publisher, keycloakAdmin, metrics)
 }
 
 // SetupRouterWithKeycloak initializes all routes with a provided Keycloak client
 // This is useful for testing where you can pass a mock Keycloak client
-func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface, keycloakAdmin interface{}) *mux.Router {
+func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface, keycloakAdmin interface{}, metrics *telemetry.Metrics) *mux.Router {
 	// Initialize organization components
 	orgRepo := organization.NewRepository(db, publisher)
 	orgService := organization.NewService(orgRepo)
@@ -36,7 +37,7 @@ func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[stri
 	// For users and patients, they use their own KeycloakAdminInterface
 	var userKeycloak users.KeycloakAdminInterface
 	var patientKeycloak patient.KeycloakAdminInterface
-	
+
 	if keycloakAdmin != nil {
 		// Try to cast to users.KeycloakAdminInterface
 		if kc, ok := keycloakAdmin.(users.KeycloakAdminInterface); ok {
@@ -68,174 +69,174 @@ func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[stri
 	}).Methods("GET")
 
 	r.Handle("/organizations",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("organization:create", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("organization:create", perms, metrics)(
 				http.HandlerFunc(orgHandler.CreateOrganization),
 			),
 		),
 	).Methods("POST")
 
 	r.Handle("/organizations",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("organization:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("organization:view", perms, metrics)(
 				http.HandlerFunc(orgHandler.ListOrganizations),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organizations/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("organization:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("organization:view", perms, metrics)(
 				http.HandlerFunc(orgHandler.GetOrganization),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organizations/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("organization:update", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("organization:update", perms, metrics)(
 				http.HandlerFunc(orgHandler.UpdateOrganization),
 			),
 		),
 	).Methods("PUT", "PATCH")
 
 	r.Handle("/organizations/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("organization:delete", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("organization:delete", perms, metrics)(
 				http.HandlerFunc(orgHandler.DeleteOrganization),
 			),
 		),
 	).Methods("DELETE")
 
 	r.Handle("/organization/patients",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("patient:create", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:create", perms, metrics)(
 				http.HandlerFunc(patientHandler.CreatePatient),
 			),
 		),
 	).Methods("POST")
 
 	r.Handle("/organization/patients",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("patient:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:view", perms, metrics)(
 				http.HandlerFunc(patientHandler.ListPatients),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/patients/active",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("patient:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:view", perms, metrics)(
 				http.HandlerFunc(patientHandler.ListActivePatients),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/patients/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("patient:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:view", perms, metrics)(
 				http.HandlerFunc(patientHandler.GetPatient),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/patients/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("patient:update", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:update", perms, metrics)(
 				http.HandlerFunc(patientHandler.UpdatePatient),
 			),
 		),
 	).Methods("PUT", "PATCH")
 
 	r.Handle("/organization/patients/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("patient:delete", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("patient:delete", perms, metrics)(
 				http.HandlerFunc(patientHandler.DeletePatient),
 			),
 		),
 	).Methods("DELETE")
 
 	r.Handle("/organization/users",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:create", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:create", perms, metrics)(
 				http.HandlerFunc(userHandler.CreateUser),
 			),
 		),
 	).Methods("POST")
 
 	r.Handle("/organization/users",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:view", perms, metrics)(
 				http.HandlerFunc(userHandler.ListUsers),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/users/caregivers/active",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:view", perms, metrics)(
 				http.HandlerFunc(userHandler.ListActiveCaregivers),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/users/municipality/active",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:view", perms, metrics)(
 				http.HandlerFunc(userHandler.ListActiveMunicipality),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/users/insurers/active",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:view", perms, metrics)(
 				http.HandlerFunc(userHandler.ListActiveInsurers),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/users/org-admins/active",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:view", perms, metrics)(
 				http.HandlerFunc(userHandler.ListActiveOrgAdmins),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/users/me",
-		auth.Middleware(verifier)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
 			http.HandlerFunc(userHandler.UpdateMyProfile),
 		),
 	).Methods("PATCH")
 
 	r.Handle("/organization/users/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:view", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:view", perms, metrics)(
 				http.HandlerFunc(userHandler.GetUser),
 			),
 		),
 	).Methods("GET")
 
 	r.Handle("/organization/users/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:update", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:update", perms, metrics)(
 				http.HandlerFunc(userHandler.UpdateUser),
 			),
 		),
 	).Methods("PATCH")
 
 	r.Handle("/organization/users/{id}/reset-password",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:update", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:update", perms, metrics)(
 				http.HandlerFunc(userHandler.ResetPassword),
 			),
 		),
 	).Methods("POST")
 
 	r.Handle("/organization/users/{id}",
-		auth.Middleware(verifier)(
-			auth.RequirePermission("user:delete", perms)(
+		auth.MiddlewareWithMetrics(verifier, metrics)(
+			auth.RequirePermissionWithMetrics("user:delete", perms, metrics)(
 				http.HandlerFunc(userHandler.DeleteUser),
 			),
 		),
