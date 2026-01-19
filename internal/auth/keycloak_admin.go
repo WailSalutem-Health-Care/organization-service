@@ -13,6 +13,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -61,7 +65,7 @@ type PasswordReset struct {
 	Temporary bool   `json:"temporary"`
 }
 
-// NewKeycloakAdminClient creates a new Keycloak admin client
+// NewKeycloakAdminClient creates a new Keycloak admin client with OpenTelemetry instrumentation
 func NewKeycloakAdminClient() (*KeycloakAdminClient, error) {
 	baseURL := os.Getenv("KEYCLOAK_BASE_URL")
 	realm := os.Getenv("KEYCLOAK_REALM")
@@ -75,13 +79,67 @@ func NewKeycloakAdminClient() (*KeycloakAdminClient, error) {
 	// Remove trailing slash from baseURL
 	baseURL = strings.TrimSuffix(baseURL, "/")
 
+	// Create HTTP client with OpenTelemetry instrumentation
+	httpClient := &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: newOtelTransport(http.DefaultTransport),
+	}
+
 	return &KeycloakAdminClient{
 		baseURL:      baseURL,
 		realm:        realm,
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
+		httpClient:   httpClient,
 	}, nil
+}
+
+// newOtelTransport wraps an HTTP transport with OpenTelemetry instrumentation
+func newOtelTransport(base http.RoundTripper) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &otelTransport{base: base}
+}
+
+// otelTransport is an HTTP transport that adds OpenTelemetry tracing
+type otelTransport struct {
+	base http.RoundTripper
+}
+
+// RoundTrip implements http.RoundTripper with OpenTelemetry tracing
+func (t *otelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx := req.Context()
+	ctx, span := tracer.Start(ctx, "keycloak.http_request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+			attribute.String("http.target", req.URL.Path),
+		),
+	)
+	defer span.End()
+
+	// Clone request with traced context
+	req = req.Clone(ctx)
+
+	// Execute request
+	resp, err := t.base.RoundTrip(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "request failed")
+		return nil, err
+	}
+
+	// Record response status
+	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
+	if resp.StatusCode >= 400 {
+		span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", resp.StatusCode))
+	} else {
+		span.SetStatus(codes.Ok, "request successful")
+	}
+
+	return resp, nil
 }
 
 // getAdminToken obtains an admin access token using client credentials
