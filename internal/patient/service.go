@@ -172,6 +172,15 @@ func (s *Service) GetPatient(ctx context.Context, schemaName string, id string) 
 	return patient, nil
 }
 
+// GetMyPatient retrieves the current patient's profile by Keycloak ID
+func (s *Service) GetMyPatient(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error) {
+	patient, err := s.repo.GetByKeycloakID(ctx, schemaName, keycloakUserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get patient: %w", err)
+	}
+	return patient, nil
+}
+
 func (s *Service) UpdatePatient(ctx context.Context, schemaName string, id string, req UpdatePatientRequest) (*PatientResponse, error) {
 	patient, err := s.repo.UpdatePatient(ctx, schemaName, id, req)
 	if err != nil {

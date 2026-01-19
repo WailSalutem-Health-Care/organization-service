@@ -644,6 +644,92 @@ func (r *Repository) GetPatient(ctx context.Context, schemaName string, id strin
 	return &patient, nil
 }
 
+func (r *Repository) GetByKeycloakID(ctx context.Context, schemaName string, keycloakUserID string) (*PatientResponse, error) {
+	query := fmt.Sprintf(`
+		SELECT id, patient_id, keycloak_user_id, first_name, last_name, email, phone_number, date_of_birth, address, 
+			   emergency_contact_name, emergency_contact_phone, medical_notes, careplan_type, 
+			   careplan_frequency, is_active, created_at, updated_at
+		FROM %s.patients
+		WHERE keycloak_user_id = $1 AND deleted_at IS NULL
+	`, pq.QuoteIdentifier(schemaName))
+
+	var patient PatientResponse
+	var dob sql.NullString
+	var email sql.NullString
+	var phoneNumber sql.NullString
+	var address sql.NullString
+	var emergencyContactName sql.NullString
+	var emergencyContactPhone sql.NullString
+	var medicalNotes sql.NullString
+	var careplanType sql.NullString
+	var careplanFrequency sql.NullString
+	var updatedAt sql.NullTime
+	var patientIDStr sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, keycloakUserID).Scan(
+		&patient.ID,
+		&patientIDStr,
+		&patient.KeycloakUserID,
+		&patient.FirstName,
+		&patient.LastName,
+		&email,
+		&phoneNumber,
+		&dob,
+		&address,
+		&emergencyContactName,
+		&emergencyContactPhone,
+		&medicalNotes,
+		&careplanType,
+		&careplanFrequency,
+		&patient.IsActive,
+		&patient.CreatedAt,
+		&updatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("patient not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query patient: %w", err)
+	}
+
+	if patientIDStr.Valid {
+		patient.PatientID = patientIDStr.String
+	}
+	if dob.Valid {
+		patient.DateOfBirth = &dob.String
+	}
+	if email.Valid {
+		patient.Email = email.String
+	}
+	if phoneNumber.Valid {
+		patient.PhoneNumber = phoneNumber.String
+	}
+	if address.Valid {
+		patient.Address = address.String
+	}
+	if emergencyContactName.Valid {
+		patient.EmergencyContactName = emergencyContactName.String
+	}
+	if emergencyContactPhone.Valid {
+		patient.EmergencyContactPhone = emergencyContactPhone.String
+	}
+	if medicalNotes.Valid {
+		patient.MedicalNotes = medicalNotes.String
+	}
+	if careplanType.Valid {
+		patient.CareplanType = careplanType.String
+	}
+	if careplanFrequency.Valid {
+		patient.CareplanFrequency = careplanFrequency.String
+	}
+	if updatedAt.Valid {
+		patient.UpdatedAt = &updatedAt.Time
+	}
+
+	return &patient, nil
+}
+
 func (r *Repository) UpdatePatient(ctx context.Context, schemaName string, id string, req UpdatePatientRequest) (*PatientResponse, error) {
 
 	var updates []string

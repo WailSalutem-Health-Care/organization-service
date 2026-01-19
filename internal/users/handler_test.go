@@ -22,6 +22,7 @@ type mockService struct {
 	listUsersWithPaginationFunc              func(principal *auth.Principal, targetOrgID string, params pagination.Params) (*PaginatedUserListResponse, error)
 	listActiveUsersByRoleWithPaginationFunc  func(principal *auth.Principal, targetOrgID string, role string, params pagination.Params) (*PaginatedUserListResponse, error)
 	updateUserFunc                           func(userID string, req UpdateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error)
+	getMyProfileFunc                         func(principal *auth.Principal) (*User, error)
 	updateMyProfileFunc                      func(req UpdateUserRequest, principal *auth.Principal) (*User, error)
 	resetPasswordFunc                        func(userID string, req ResetPasswordRequest, principal *auth.Principal, targetOrgID string) error
 	deleteUserFunc                           func(userID string, principal *auth.Principal) error
@@ -65,6 +66,13 @@ func (m *mockService) ListActiveUsersByRoleWithPagination(principal *auth.Princi
 func (m *mockService) UpdateUser(userID string, req UpdateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error) {
 	if m.updateUserFunc != nil {
 		return m.updateUserFunc(userID, req, principal, targetOrgID)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockService) GetMyProfile(principal *auth.Principal) (*User, error) {
+	if m.getMyProfileFunc != nil {
+		return m.getMyProfileFunc(principal)
 	}
 	return nil, errors.New("not implemented")
 }
