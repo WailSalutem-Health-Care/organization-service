@@ -17,7 +17,7 @@ data:
   KEYCLOAK_API_CLIENT_ID: wailsalutem-api
   KEYCLOAK_ADMIN_CLIENT_ID: wailsalutem-admin
   
-  ALLOWED_ORIGINS: "http://localhost:3000,https://wailsalutem-web-ui.netlify.app"
+  ALLOWED_ORIGINS: "http://localhost:3000,https://wailsalutem-web-ui.netlify.app,https://wailsalutem-suite.netlify.app"
   
   # OpenTelemetry Configuration
   OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.observability.svc.cluster.local:4317"
