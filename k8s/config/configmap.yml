@@ -20,10 +20,13 @@ data:
   ALLOWED_ORIGINS: "http://localhost:3000,https://wailsalutem-web-ui.netlify.app"
   
   # OpenTelemetry Configuration
-  OTEL_EXPORTER_OTLP_ENDPOINT: "tempo.observability.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.observability.svc.cluster.local:4317"
   OTEL_SERVICE_NAME: "organization-service"
   OTEL_SERVICE_NAMESPACE: "wailsalutem"
   OTEL_SERVICE_VERSION: "1.0.0"
   ENVIRONMENT: "production"
   OTEL_TRACES_SAMPLER: "always_on"
   OTEL_METRICS_EXPORT_INTERVAL: "30s"
+  OTEL_TRACES_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_EXPORTER_OTLP_INSECURE: "true"
