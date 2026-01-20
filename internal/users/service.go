@@ -21,6 +21,11 @@ func NewService(repo RepositoryInterface, keycloakAdmin KeycloakAdminInterface) 
 }
 
 func (s *Service) CreateUser(req CreateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error) {
+	if s.keycloakAdmin == nil {
+		log.Printf("Keycloak admin client is not initialized")
+		return nil, fmt.Errorf("keycloak admin client is not available")
+	}
+
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -352,6 +357,11 @@ func (s *Service) ListActiveUsersByRoleWithPagination(principal *auth.Principal,
 }
 
 func (s *Service) UpdateUser(userID string, req UpdateUserRequest, principal *auth.Principal, targetOrgID string) (*User, error) {
+	if s.keycloakAdmin == nil {
+		log.Printf("Keycloak admin client is not initialized")
+		return nil, fmt.Errorf("keycloak admin client is not available")
+	}
+
 	var effectiveOrgID string
 
 	if s.hasRole(principal, "SUPER_ADMIN") {
@@ -463,6 +473,11 @@ func (s *Service) GetMyProfile(principal *auth.Principal) (*User, error) {
 }
 
 func (s *Service) UpdateMyProfile(req UpdateUserRequest, principal *auth.Principal) (*User, error) {
+	if s.keycloakAdmin == nil {
+		log.Printf("Keycloak admin client is not initialized")
+		return nil, fmt.Errorf("keycloak admin client is not available")
+	}
+
 	if principal.OrgID == "" {
 		log.Printf("User token missing organizationID claim - cannot update profile")
 		return nil, fmt.Errorf("user token must contain organizationID claim")
@@ -532,6 +547,11 @@ func (s *Service) UpdateMyProfile(req UpdateUserRequest, principal *auth.Princip
 }
 
 func (s *Service) ResetPassword(userID string, req ResetPasswordRequest, principal *auth.Principal, targetOrgID string) error {
+	if s.keycloakAdmin == nil {
+		log.Printf("Keycloak admin client is not initialized")
+		return fmt.Errorf("keycloak admin client is not available")
+	}
+
 	var effectiveOrgID string
 
 	if s.hasRole(principal, "SUPER_ADMIN") {
@@ -589,6 +609,11 @@ func (s *Service) ResetPassword(userID string, req ResetPasswordRequest, princip
 }
 
 func (s *Service) DeleteUser(userID string, principal *auth.Principal) error {
+	if s.keycloakAdmin == nil {
+		log.Printf("Keycloak admin client is not initialized")
+		return fmt.Errorf("keycloak admin client is not available")
+	}
+
 	orgSchemaName := principal.OrgSchemaName
 	if orgSchemaName == "" {
 		if principal.OrgID == "" {

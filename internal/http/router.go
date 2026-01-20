@@ -39,14 +39,25 @@ func SetupRouterWithKeycloak(db *sql.DB, verifier *auth.Verifier, perms map[stri
 	var patientKeycloak patient.KeycloakAdminInterface
 
 	if keycloakAdmin != nil {
-		// Try to cast to users.KeycloakAdminInterface
-		if kc, ok := keycloakAdmin.(users.KeycloakAdminInterface); ok {
+		// If it's the concrete *auth.KeycloakAdminClient type, we know it implements both interfaces
+		if kc, ok := keycloakAdmin.(*auth.KeycloakAdminClient); ok {
 			userKeycloak = kc
-		}
-		// Try to cast to patient.KeycloakAdminInterface
-		if kc, ok := keycloakAdmin.(patient.KeycloakAdminInterface); ok {
 			patientKeycloak = kc
+		} else {
+			// For mocks or other implementations, try type assertions
+			if kc, ok := keycloakAdmin.(users.KeycloakAdminInterface); ok {
+				userKeycloak = kc
+			} else {
+				log.Printf("Warning: keycloakAdmin does not implement users.KeycloakAdminInterface")
+			}
+			if kc, ok := keycloakAdmin.(patient.KeycloakAdminInterface); ok {
+				patientKeycloak = kc
+			} else {
+				log.Printf("Warning: keycloakAdmin does not implement patient.KeycloakAdminInterface")
+			}
 		}
+	} else {
+		log.Printf("Warning: keycloakAdmin is nil - user and patient creation will fail")
 	}
 
 	// Initialize patient components

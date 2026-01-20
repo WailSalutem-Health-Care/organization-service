@@ -78,6 +78,12 @@ func NewPublisher() (*Publisher, error) {
 // Publish publishes an event to RabbitMQ with the specified routing key
 // It includes OpenTelemetry tracing with context propagation
 func (p *Publisher) Publish(ctx context.Context, routingKey string, eventData interface{}) error {
+	// Check if publisher is nil before accessing any fields
+	if p == nil || p.channel == nil {
+		log.Printf("Warning: RabbitMQ publisher not initialized, skipping event: %s", routingKey)
+		return nil
+	}
+
 	// Start a span for the publish operation
 	ctx, span := tracer.Start(ctx, "rabbitmq.publish",
 		trace.WithSpanKind(trace.SpanKindProducer),
@@ -89,12 +95,6 @@ func (p *Publisher) Publish(ctx context.Context, routingKey string, eventData in
 		),
 	)
 	defer span.End()
-
-	if p == nil || p.channel == nil {
-		log.Printf("Warning: RabbitMQ publisher not initialized, skipping event: %s", routingKey)
-		span.SetStatus(codes.Error, "publisher not initialized")
-		return nil
-	}
 
 	body, err := json.Marshal(eventData)
 	if err != nil {

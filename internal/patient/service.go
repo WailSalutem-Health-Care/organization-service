@@ -22,6 +22,11 @@ func NewService(repo RepositoryInterface, keycloakAdmin KeycloakAdminInterface) 
 }
 
 func (s *Service) CreatePatient(ctx context.Context, schemaName string, orgID string, req CreatePatientRequest) (*PatientResponse, error) {
+	if s.keycloakAdmin == nil {
+		log.Printf("Keycloak admin client is not initialized")
+		return nil, fmt.Errorf("keycloak admin client is not available")
+	}
+
 	// Validate required fields
 	if req.Username == "" {
 		return nil, fmt.Errorf("username is required")
