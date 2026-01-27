@@ -55,9 +55,10 @@ roles:
 
     - organization:view
 
-    - patient:view
     - user:view
 
+    - patient:view
+    - patient:update
 
   INSURER:
     - organization:view
