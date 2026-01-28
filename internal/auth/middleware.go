@@ -143,6 +143,8 @@ func RequirePermissionWithMetrics(per string, perms Permissions, metrics Permiss
 			}
 
 			if !allowed {
+				log.Printf("[PERMISSION DENIED] User: %s, Roles: %v, Required Permission: %s, Available Permissions: %v", 
+					pr.UserID, pr.Roles, per, perms)
 				span.SetStatus(codes.Error, "forbidden")
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
@@ -161,13 +163,19 @@ func FromContext(ctx context.Context) (*Principal, bool) {
 }
 
 // HasPermission checks roles -> permissions mapping.
+// Role lookup is case-insensitive so Keycloak realm roles (e.g. "patient") match permissions.yml (e.g. "PATIENT").
 func HasPermission(pr *Principal, permission string, perms Permissions) bool {
 	roleSet := map[string]struct{}{}
 	for _, r := range pr.Roles {
 		roleSet[r] = struct{}{}
 	}
 	for role := range roleSet {
-		if pList, ok := perms[role]; ok {
+		// Try exact match first, then uppercase (permissions.yml uses PATIENT, ORG_ADMIN, etc.)
+		pList, ok := perms[role]
+		if !ok {
+			pList, ok = perms[strings.ToUpper(role)]
+		}
+		if ok {
 			for _, p := range pList {
 				if p == permission {
 					return true

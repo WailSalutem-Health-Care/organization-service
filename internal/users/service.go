@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/WailSalutem-Health-Care/organization-service/internal/auth"
 	"github.com/WailSalutem-Health-Care/organization-service/internal/pagination"
@@ -174,16 +175,23 @@ func (s *Service) GetUser(userID string, principal *auth.Principal, targetOrgID 
 			log.Printf("SUPER_ADMIN getting user from own org: %s", effectiveOrgID)
 		}
 	} else {
-		if targetOrgID != "" {
-			log.Printf("ORG_ADMIN attempted to get user from different org")
-			return nil, ErrForbidden
-		}
+		// For non-SUPER_ADMIN (ORG_ADMIN, PATIENT, etc.), they can only access their own org
 		effectiveOrgID = principal.OrgID
 		if effectiveOrgID == "" {
 			log.Printf("No organization ID in token")
 			return nil, ErrInvalidOrgSchema
 		}
-		log.Printf("ORG_ADMIN getting user from own org: %s", effectiveOrgID)
+		
+		// If X-Organization-ID header is provided, verify it matches the user's org
+		if targetOrgID != "" {
+			if targetOrgID != effectiveOrgID {
+				log.Printf("Non-SUPER_ADMIN attempted to get user from different org (header: %s, token: %s)", targetOrgID, effectiveOrgID)
+				return nil, ErrForbidden
+			}
+			log.Printf("Non-SUPER_ADMIN accessing own org via header: %s", effectiveOrgID)
+		} else {
+			log.Printf("Getting user from own org: %s", effectiveOrgID)
+		}
 	}
 
 	orgSchemaName, err := s.repo.GetSchemaNameByOrgID(effectiveOrgID)
@@ -656,8 +664,9 @@ func (s *Service) DeleteUser(userID string, principal *auth.Principal) error {
 }
 
 func (s *Service) hasRole(principal *auth.Principal, role string) bool {
+	roleUpper := strings.ToUpper(role)
 	for _, r := range principal.Roles {
-		if r == role {
+		if r == role || strings.ToUpper(r) == roleUpper {
 			return true
 		}
 	}
