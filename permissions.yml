@@ -35,6 +35,7 @@ roles:
 
   CAREGIVER:
     - patient:view
+
     - user:view
 
     - nfc:check-in
@@ -47,6 +48,8 @@ roles:
   PATIENT:
     - patient:view
     - patient:update
+
+    - user:view
 
     - care-session:read
 
