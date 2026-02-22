@@ -1,5 +1,7 @@
 package auth
 
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
+
 import (
 	"context"
 	"log"
@@ -26,6 +28,7 @@ type MetricsRecorder interface {
 
 // Middleware validates token, injects Principal into request context.
 // verifier should be created with NewVerifier.
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
 func Middleware(ver *Verifier) func(http.Handler) http.Handler {
 	return MiddlewareWithMetrics(ver, nil)
 }
@@ -143,7 +146,7 @@ func RequirePermissionWithMetrics(per string, perms Permissions, metrics Permiss
 			}
 
 			if !allowed {
-				log.Printf("[PERMISSION DENIED] User: %s, Roles: %v, Required Permission: %s, Available Permissions: %v", 
+				log.Printf("[PERMISSION DENIED] User: %s, Roles: %v, Required Permission: %s, Available Permissions: %v",
 					pr.UserID, pr.Roles, per, perms)
 				span.SetStatus(codes.Error, "forbidden")
 				http.Error(w, "forbidden", http.StatusForbidden)

@@ -1,0 +1,944 @@
+openapi: 3.0.3
+info:
+  title: Organization Service API
+  description: |
+    API documentation for the Organization Service which manages organizations, patients, and users.
+    
+    ## Authentication
+    All endpoints (except /health) require Bearer token authentication.
+    Header: `Authorization: Bearer <your-token>`
+    
+    ## For SUPER_ADMIN
+    Add `X-Organization-ID` header to specify target organization.
+    
+    ## For ORG_ADMIN
+    Uses organization from token automatically. Do NOT send X-Organization-ID header.
+  version: 1.0.0
+  contact:
+    name: WailSalutem Health Care
+    email: support@wailsalutem.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.wailsalutem.com
+    description: Production
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    OrganizationID:
+      name: X-Organization-ID
+      in: header
+      required: false
+      description: Organization ID (required for SUPER_ADMIN, forbidden for ORG_ADMIN)
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: organization-service
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        schema_name:
+          type: string
+        contact_email:
+          type: string
+          format: email
+        contact_phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+        settings:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    CreateOrganizationRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Healthcare Center A
+        contact_email:
+          type: string
+          format: email
+          example: contact@healthcare.com
+        contact_phone:
+          type: string
+          example: "+1234567890"
+        address:
+          type: string
+          example: 123 Main St, City, State 12345
+        settings:
+          type: object
+
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        contact_email:
+          type: string
+          format: email
+        contact_phone:
+          type: string
+        address:
+          type: string
+
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        keycloak_user_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        address:
+          type: string
+        emergency_contact_name:
+          type: string
+        emergency_contact_phone:
+          type: string
+        medical_notes:
+          type: string
+        careplan_type:
+          type: string
+        careplan_frequency:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreatePatientRequest:
+      type: object
+      required:
+        - username
+        - firstName
+        - lastName
+        - email
+        - dateOfBirth
+        - address
+      properties:
+        username:
+          type: string
+          example: john.patient
+        temporaryPassword:
+          type: string
+          example: TempPass123!
+        sendResetEmail:
+          type: boolean
+          default: false
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        phoneNumber:
+          type: string
+          example: "+1234567890"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1980-05-15"
+        address:
+          type: string
+          example: 789 Patient St, City, State 12345
+        emergencyContactName:
+          type: string
+          example: Jane Doe
+        emergencyContactPhone:
+          type: string
+          example: "+1987654321"
+        medicalNotes:
+          type: string
+          example: Diabetic, requires regular insulin
+        careplanType:
+          type: string
+          example: intensive
+        careplanFrequency:
+          type: string
+          example: daily
+
+    UpdatePatientRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        address:
+          type: string
+        emergency_contact_name:
+          type: string
+        emergency_contact_phone:
+          type: string
+        medical_notes:
+          type: string
+        is_active:
+          type: boolean
+        careplan_type:
+          type: string
+        careplan_frequency:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        keycloakUserId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        role:
+          type: string
+        orgId:
+          type: string
+          format: uuid
+        orgSchemaName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - email
+        - firstName
+        - lastName
+        - role
+      properties:
+        username:
+          type: string
+          example: caregiver.smith
+        email:
+          type: string
+          format: email
+          example: smith@healthcare.com
+        firstName:
+          type: string
+          example: Sarah
+        lastName:
+          type: string
+          example: Smith
+        phoneNumber:
+          type: string
+          example: "+1234567890"
+        role:
+          type: string
+          enum: [CAREGIVER, MUNICIPALITY, INSURER]
+          example: CAREGIVER
+        temporaryPassword:
+          type: string
+          example: TempPass123!
+        sendResetEmail:
+          type: boolean
+          default: false
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        temporaryPassword:
+          type: string
+          example: NewTempPass123!
+        sendEmail:
+          type: boolean
+          example: true
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the service is running
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /organizations:
+    post:
+      tags:
+        - Organizations
+      summary: Create organization
+      description: Create a new organization (SUPER_ADMIN only)
+      operationId: createOrganization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+    get:
+      tags:
+        - Organizations
+      summary: List organizations
+      description: |
+        List organizations based on role:
+        - SUPER_ADMIN: Returns all organizations
+        - ORG_ADMIN: Returns only their own organization
+      operationId: listOrganizations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /organizations/{id}:
+    get:
+      tags:
+        - Organizations
+      summary: Get organization by ID
+      description: |
+        - SUPER_ADMIN: Can view any organization
+        - ORG_ADMIN: Can only view their own organization
+      operationId: getOrganization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    put:
+      tags:
+        - Organizations
+      summary: Update organization (full)
+      description: SUPER_ADMIN only. ORG_ADMIN gets 403 Forbidden.
+      operationId: updateOrganizationPut
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    patch:
+      tags:
+        - Organizations
+      summary: Update organization (partial)
+      description: SUPER_ADMIN only. ORG_ADMIN gets 403 Forbidden.
+      operationId: updateOrganizationPatch
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    delete:
+      tags:
+        - Organizations
+      summary: Delete organization
+      description: SUPER_ADMIN only
+      operationId: deleteOrganization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Organization deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+  /organization/patients:
+    post:
+      tags:
+        - Patients
+      summary: Create patient
+      description: Create a new patient user
+      operationId: createPatient
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePatientRequest'
+      responses:
+        '201':
+          description: Patient created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+    get:
+      tags:
+        - Patients
+      summary: List patients
+      description: List all patients in organization
+      operationId: listPatients
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '200':
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Patient'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /organization/patients/{id}:
+    get:
+      tags:
+        - Patients
+      summary: Get patient by ID
+      description: Get patient details
+      operationId: getPatient
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '200':
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    put:
+      tags:
+        - Patients
+      summary: Update patient (full)
+      description: Update patient information
+      operationId: updatePatientPut
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePatientRequest'
+      responses:
+        '200':
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    patch:
+      tags:
+        - Patients
+      summary: Update patient (partial)
+      description: Update patient information
+      operationId: updatePatientPatch
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePatientRequest'
+      responses:
+        '200':
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    delete:
+      tags:
+        - Patients
+      summary: Delete patient
+      description: Soft delete patient
+      operationId: deletePatient
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '204':
+          description: Patient deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+  /organization/users:
+    post:
+      tags:
+        - Users
+      summary: Create user
+      description: Create a new user (CAREGIVER, MUNICIPALITY, INSURER)
+      operationId: createUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: List all users in organization
+      operationId: listUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /organization/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Get user details
+      operationId: getUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    patch:
+      tags:
+        - Users
+      summary: Update user
+      description: Update user information
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Soft delete user
+      operationId: deleteUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '204':
+          description: User deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+  /organization/users/me:
+    patch:
+      tags:
+        - Users
+      summary: Update own profile
+      description: Update authenticated user's own profile
+      operationId: updateMyProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+
+  /organization/users/{id}/reset-password:
+    post:
+      tags:
+        - Users
+      summary: Reset user password
+      description: Reset password for a user (requires X-Organization-ID for SUPER_ADMIN)
+      operationId: resetPassword
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found

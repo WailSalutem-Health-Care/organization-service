@@ -1,5 +1,7 @@
 package organization
 
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
+
 import (
 	"encoding/json"
 	"net/http"
@@ -13,6 +15,8 @@ type Handler struct {
 	service ServiceInterface
 }
 
+// NewHandler creates a new organization handler
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
 func NewHandler(service ServiceInterface) *Handler {
 	return &Handler{service: service}
 }

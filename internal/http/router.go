@@ -1,5 +1,7 @@
 package http
 
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
+
 import (
 	"database/sql"
 	"log"
@@ -15,6 +17,7 @@ import (
 )
 
 // SetupRouter initializes all routes for the application
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
 func SetupRouter(db *sql.DB, verifier *auth.Verifier, perms map[string][]string, publisher messaging.PublisherInterface, metrics *telemetry.Metrics) *mux.Router {
 	// Initialize Keycloak admin client
 	keycloakAdmin, err := auth.NewKeycloakAdminClient()

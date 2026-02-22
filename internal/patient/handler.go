@@ -1,5 +1,7 @@
 package patient
 
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
+
 import (
 	"encoding/json"
 	"net/http"
@@ -14,6 +16,8 @@ type Handler struct {
 	schemaLookup SchemaLookup
 }
 
+// NewHandler creates a new patient handler
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
 func NewHandler(service ServiceInterface, schemaLookup SchemaLookup) *Handler {
 	return &Handler{
 		service:      service,

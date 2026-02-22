@@ -1,5 +1,7 @@
 package organization
 
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
+
 import (
 	"context"
 	"fmt"
@@ -13,6 +15,8 @@ type Service struct {
 	repo RepositoryInterface
 }
 
+// NewService creates a new organization service
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }

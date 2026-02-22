@@ -1,5 +1,7 @@
 package users
 
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
+
 import (
 	"encoding/json"
 	"log"
@@ -14,6 +16,8 @@ type Handler struct {
 	service ServiceInterface
 }
 
+// NewHandler creates a new user handler
+// Development Team: Muhammad Faizan, Roozbeh Kouchaki, Fatemehalsadat Sabaghjafari, Dipika Bhandari
 func NewHandler(service ServiceInterface) *Handler {
 	return &Handler{service: service}
 }
